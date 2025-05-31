@@ -3,14 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Search, Menu, Flame } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 
 export const Header = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { profile } = useProfile();
+
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">B</span>
             </div>
@@ -22,10 +29,10 @@ export const Header = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+            <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/')}>
               Cursos
             </Button>
-            <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+            <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/practice')}>
               Prática
             </Button>
             <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
@@ -39,10 +46,12 @@ export const Header = () => {
           {/* Right Section */}
           <div className="flex items-center gap-4">
             {/* Streak */}
-            <div className="hidden sm:flex items-center gap-2 bg-orange-100 px-3 py-1 rounded-full">
-              <Flame className="h-4 w-4 text-orange-500" />
-              <span className="text-sm font-semibold text-orange-700">7 dias</span>
-            </div>
+            {profile && (
+              <div className="hidden sm:flex items-center gap-2 bg-orange-100 px-3 py-1 rounded-full">
+                <Flame className="h-4 w-4 text-orange-500" />
+                <span className="text-sm font-semibold text-orange-700">{profile.streak_atual} dias</span>
+              </div>
+            )}
 
             {/* Search */}
             <Button variant="ghost" size="icon" className="text-gray-500 hover:text-gray-700">
@@ -58,10 +67,14 @@ export const Header = () => {
             </Button>
 
             {/* Profile */}
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=32&h=32&fit=crop&crop=face" />
-              <AvatarFallback>MA</AvatarFallback>
-            </Avatar>
+            {user && (
+              <Avatar className="h-8 w-8 cursor-pointer" onClick={() => navigate('/profile')}>
+                <AvatarImage src={profile?.avatar || undefined} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                  {profile?.nome?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            )}
 
             {/* Mobile Menu */}
             <Button variant="ghost" size="icon" className="md:hidden">

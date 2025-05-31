@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,50 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useCourses } from "@/hooks/useCourses";
 import { useUserProgress } from "@/hooks/useUserProgress";
+
+interface SubjectData {
+  id: string;
+  nome: string;
+  descricao: string;
+  cor: string;
+  icone: string;
+  ordem: number;
+  created_at: string;
+}
+
+interface UserProfile {
+  id: string;
+  nome: string;
+  idade?: number;
+  escola?: string;
+  avatar?: string;
+  xp: number;
+  streak_atual: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface UserProgressData {
+  id: string;
+  user_id: string;
+  lesson_id: string;
+  concluido: boolean;
+  pontuacao: number;
+  tentativas: number;
+  data_conclusao?: string;
+  created_at: string;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+  icon: LucideIcon;
+  color: string;
+  description: string;
+  lessons: number;
+  completed: number;
+  difficulty: string;
+}
 
 const Index = () => {
   const [selectedSubject, setSelectedSubject] = useState("all");
@@ -51,7 +94,7 @@ const Index = () => {
     const total = 10; // Placeholder - in real app we'd count lessons per course
     
     return {
-      id: course.nome.toLowerCase(),
+      id: course.id, // Use actual course ID instead of name
       name: course.nome,
       icon: course.icone === 'Calculator' ? Calculator : 
             course.icone === 'Atom' ? Atom :
