@@ -154,6 +154,86 @@ export type Database = {
           },
         ]
       }
+      math_questions: {
+        Row: {
+          alternativas: Json | null
+          created_at: string
+          dificuldade: string | null
+          enunciado: string
+          explicacao: string | null
+          id: string
+          ordem: number
+          resposta_certa: string
+          tipo: string | null
+          topic_id: string
+        }
+        Insert: {
+          alternativas?: Json | null
+          created_at?: string
+          dificuldade?: string | null
+          enunciado: string
+          explicacao?: string | null
+          id?: string
+          ordem?: number
+          resposta_certa: string
+          tipo?: string | null
+          topic_id: string
+        }
+        Update: {
+          alternativas?: Json | null
+          created_at?: string
+          dificuldade?: string | null
+          enunciado?: string
+          explicacao?: string | null
+          id?: string
+          ordem?: number
+          resposta_certa?: string
+          tipo?: string | null
+          topic_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "math_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "math_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      math_topics: {
+        Row: {
+          conteudo_teoria: string
+          cor: string | null
+          created_at: string
+          icone: string | null
+          id: string
+          nivel: string
+          ordem: number
+          titulo: string
+        }
+        Insert: {
+          conteudo_teoria: string
+          cor?: string | null
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nivel?: string
+          ordem?: number
+          titulo: string
+        }
+        Update: {
+          conteudo_teoria?: string
+          cor?: string | null
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nivel?: string
+          ordem?: number
+          titulo?: string
+        }
+        Relationships: []
+      }
       streaks: {
         Row: {
           created_at: string | null
@@ -183,6 +263,57 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_math_progress: {
+        Row: {
+          acertos: number | null
+          created_at: string
+          id: string
+          question_id: string | null
+          tempo_estudo: number | null
+          tentativas: number | null
+          topic_id: string
+          ultimo_acesso: string | null
+          user_id: string
+        }
+        Insert: {
+          acertos?: number | null
+          created_at?: string
+          id?: string
+          question_id?: string | null
+          tempo_estudo?: number | null
+          tentativas?: number | null
+          topic_id: string
+          ultimo_acesso?: string | null
+          user_id: string
+        }
+        Update: {
+          acertos?: number | null
+          created_at?: string
+          id?: string
+          question_id?: string | null
+          tempo_estudo?: number | null
+          tentativas?: number | null
+          topic_id?: string
+          ultimo_acesso?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_math_progress_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "math_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_math_progress_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "math_topics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_progress: {
         Row: {

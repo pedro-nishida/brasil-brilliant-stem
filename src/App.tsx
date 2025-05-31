@@ -13,6 +13,8 @@ import Profile from "./pages/Profile";
 import Practice from "./pages/Practice";
 import Community from "./pages/Community";
 import Enem from "./pages/Enem";
+import Mathematics from "./pages/Mathematics";
+import MathTopic from "./pages/MathTopic";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,8 @@ const App = () => (
             <Route path="/practice" element={<Practice />} />
             <Route path="/community" element={<Community />} />
             <Route path="/enem" element={<Enem />} />
+            <Route path="/mathematics" element={<Mathematics />} />
+            <Route path="/math-topic/:topicId" element={<MathTopic />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
