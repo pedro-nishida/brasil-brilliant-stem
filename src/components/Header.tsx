@@ -35,10 +35,10 @@ export const Header = () => {
             <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/practice')}>
               Prática
             </Button>
-            <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+            <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/community')}>
               Comunidade
             </Button>
-            <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+            <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/enem')}>
               ENEM
             </Button>
           </nav>

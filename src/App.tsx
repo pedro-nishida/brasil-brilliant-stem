@@ -11,6 +11,8 @@ import Course from "./pages/Course";
 import Lesson from "./pages/Lesson";
 import Profile from "./pages/Profile";
 import Practice from "./pages/Practice";
+import Community from "./pages/Community";
+import Enem from "./pages/Enem";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +31,8 @@ const App = () => (
             <Route path="/lesson/:lessonId" element={<Lesson />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/practice" element={<Practice />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/enem" element={<Enem />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
