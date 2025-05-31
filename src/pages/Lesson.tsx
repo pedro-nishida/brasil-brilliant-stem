@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,7 @@ interface Lesson {
 interface Exercise {
   id: string;
   enunciado: string;
-  alternativas: string[];
+  alternativas: string[] | null;
   resposta_certa: string;
   explicacao: string;
   tipo: string;
@@ -74,7 +73,18 @@ const Lesson = () => {
         .order('ordem');
 
       if (exercisesError) throw exercisesError;
-      setExercises(exercisesData || []);
+      
+      // Convert the data to match our Exercise interface
+      const formattedExercises = exercisesData?.map(exercise => ({
+        ...exercise,
+        alternativas: Array.isArray(exercise.alternativas) 
+          ? exercise.alternativas as string[]
+          : typeof exercise.alternativas === 'string'
+          ? JSON.parse(exercise.alternativas) as string[]
+          : null
+      })) || [];
+      
+      setExercises(formattedExercises);
 
     } catch (error) {
       console.error('Erro ao carregar dados da lição:', error);
@@ -236,7 +246,7 @@ const Lesson = () => {
               <div>
                 <h3 className="text-lg font-medium mb-4">{currentEx.enunciado}</h3>
                 
-                {currentEx.tipo === 'multiple_choice' && currentEx.alternativas && (
+                {currentEx.tipo === 'multiple_choice' && currentEx.alternativas && Array.isArray(currentEx.alternativas) && (
                   <div className="space-y-3">
                     {currentEx.alternativas.map((option, index) => (
                       <label 
