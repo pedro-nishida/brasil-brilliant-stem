@@ -11,27 +11,10 @@ import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Database } from '@/integrations/supabase/types';
 
-interface Lesson {
-  id: string;
-  course_id: string;
-  titulo: string;
-  conteudo: string;
-  xp_reward: number;
-  ordem: number;
-  dificuldade: string;
-}
-
-interface Exercise {
-  id: string;
-  lesson_id: string;
-  tipo: string;
-  enunciado: string;
-  alternativas: string[] | null;
-  resposta_certa: string;
-  explicacao: string | null;
-  ordem: number;
-}
+type Lesson = Database['public']['Tables']['lessons']['Row'];
+type Exercise = Database['public']['Tables']['exercises']['Row'];
 
 const Lesson = () => {
   const { lessonId } = useParams();
@@ -280,13 +263,13 @@ const Lesson = () => {
                   {exercises[currentExercise]?.enunciado}
                 </h3>
                 
-                {exercises[currentExercise]?.alternativas && (
+                {exercises[currentExercise]?.alternativas && Array.isArray(exercises[currentExercise].alternativas) && (
                   <RadioGroup 
                     value={selectedAnswer} 
                     onValueChange={setSelectedAnswer}
                     disabled={showResult}
                   >
-                    {exercises[currentExercise].alternativas.map((alternativa, index) => (
+                    {(exercises[currentExercise].alternativas as string[]).map((alternativa, index) => (
                       <div key={index} className="flex items-center space-x-2">
                         <RadioGroupItem value={alternativa} id={`option-${index}`} />
                         <Label htmlFor={`option-${index}`} className="cursor-pointer">

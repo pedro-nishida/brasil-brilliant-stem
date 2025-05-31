@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Calculator, Atom, Zap, Trophy, Target, ChevronRight, Play, Star, LogOut } from "lucide-react";
+import { BookOpen, Calculator, Atom, Zap, Trophy, Target, ChevronRight, Play, Star, LogOut, LucideIcon } from "lucide-react";
 import { Header } from "@/components/Header";
 import { CourseCard } from "@/components/CourseCard";
 import { StatsCard } from "@/components/StatsCard";
