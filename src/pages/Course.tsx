@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Play, Lock, CheckCircle, Star, Clock } from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Star, Play } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,9 +14,9 @@ interface Lesson {
   id: string;
   titulo: string;
   conteudo: string;
+  dificuldade: string;
   xp_reward: number;
   ordem: number;
-  dificuldade: string;
 }
 
 interface Course {
@@ -43,7 +43,7 @@ const Course = () => {
     }
 
     fetchCourseData();
-  }, [courseId, user]);
+  }, [user, courseId, navigate]);
 
   const fetchCourseData = async () => {
     try {
@@ -59,7 +59,7 @@ const Course = () => {
       if (courseError) throw courseError;
       setCourse(courseData);
 
-      // Fetch lessons for this course
+      // Fetch lessons
       const { data: lessonsData, error: lessonsError } = await supabase
         .from('lessons')
         .select('*')
@@ -70,13 +70,15 @@ const Course = () => {
       setLessons(lessonsData || []);
 
       // Fetch user progress
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', user?.id);
+      if (user) {
+        const { data: progressData, error: progressError } = await supabase
+          .from('user_progress')
+          .select('*')
+          .eq('user_id', user.id);
 
-      if (progressError) throw progressError;
-      setUserProgress(progressData || []);
+        if (progressError) throw progressError;
+        setUserProgress(progressData || []);
+      }
 
     } catch (error) {
       console.error('Erro ao carregar dados do curso:', error);
@@ -85,18 +87,19 @@ const Course = () => {
     }
   };
 
-  const isLessonCompleted = (lessonId: string) => {
-    return userProgress.some(p => p.lesson_id === lessonId && p.concluido);
+  const getLessonProgress = (lessonId: string) => {
+    const progress = userProgress.find(p => p.lesson_id === lessonId);
+    return progress ? progress.concluido : false;
   };
 
-  const isLessonUnlocked = (lessonIndex: number) => {
-    if (lessonIndex === 0) return true;
-    const previousLesson = lessons[lessonIndex - 1];
-    return isLessonCompleted(previousLesson.id);
+  const getDifficultyColor = (dificuldade: string) => {
+    switch (dificuldade) {
+      case 'facil': return 'bg-green-100 text-green-800';
+      case 'medio': return 'bg-yellow-100 text-yellow-800';
+      case 'dificil': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
-
-  const completedLessons = lessons.filter(lesson => isLessonCompleted(lesson.id)).length;
-  const progressPercentage = lessons.length > 0 ? (completedLessons / lessons.length) * 100 : 0;
 
   if (loading) {
     return (
@@ -112,161 +115,118 @@ const Course = () => {
         <Header />
         <div className="container mx-auto px-6 py-8 text-center">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Curso não encontrado</h1>
-          <Button onClick={() => navigate('/')}>Voltar ao início</Button>
+          <Button onClick={() => navigate('/')}>Voltar ao Início</Button>
         </div>
       </div>
     );
   }
+
+  const completedLessons = lessons.filter(lesson => getLessonProgress(lesson.id)).length;
+  const progressPercentage = lessons.length > 0 ? (completedLessons / lessons.length) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Header />
       
       <div className="container mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-        </div>
+        {/* Back Button */}
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/')}
+          className="mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar
+        </Button>
 
-        {/* Course Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-2">
-            <Card className="shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className={`w-16 h-16 rounded-xl bg-gradient-to-br from-${course.cor}-500 to-${course.cor}-600 flex items-center justify-center text-white text-2xl font-bold`}>
-                    {course.nome.charAt(0)}
-                  </div>
-                  <div>
-                    <CardTitle className="text-3xl">{course.nome}</CardTitle>
-                    <CardDescription className="text-lg">{course.descricao}</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-6 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">{lessons.length} lições</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Star className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm text-gray-600">Ensino Médio</span>
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">Progresso do Curso</span>
-                    <span className="text-sm text-gray-600">{completedLessons}/{lessons.length} concluídas</span>
-                  </div>
-                  <Progress value={progressPercentage} className="h-2" />
-                </div>
-              </CardContent>
-            </Card>
+        {/* Course Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className={`w-16 h-16 bg-gradient-to-br from-${course.cor}-500 to-${course.cor}-600 rounded-xl flex items-center justify-center`}>
+              <BookOpen className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{course.nome}</h1>
+              <p className="text-gray-600">{course.descricao}</p>
+            </div>
           </div>
 
-          <div>
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>Suas Estatísticas</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span>Lições concluídas:</span>
-                  <Badge variant="secondary">{completedLessons}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span>XP ganho:</span>
-                  <Badge variant="secondary">
-                    {lessons.filter(l => isLessonCompleted(l.id)).reduce((total, l) => total + l.xp_reward, 0)} XP
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span>Progresso:</span>
-                  <Badge variant="secondary">{Math.round(progressPercentage)}%</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Progress Overview */}
+          <Card className="bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-lg font-medium">Progresso do Curso</span>
+                <span className="text-lg font-bold text-blue-600">{Math.round(progressPercentage)}%</span>
+              </div>
+              <Progress value={progressPercentage} className="h-3 mb-2" />
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>{completedLessons} de {lessons.length} lições concluídas</span>
+                <span>{lessons.reduce((sum, lesson) => sum + lesson.xp_reward, 0)} XP total</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Lessons List */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>Lições do Curso</CardTitle>
-            <CardDescription>Complete as lições em ordem para desbloquear o próximo conteúdo</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {lessons.map((lesson, index) => {
-                const completed = isLessonCompleted(lesson.id);
-                const unlocked = isLessonUnlocked(index);
-                
-                return (
-                  <div
-                    key={lesson.id}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      completed
-                        ? 'border-green-200 bg-green-50'
-                        : unlocked
-                        ? 'border-blue-200 bg-blue-50 hover:border-blue-300 cursor-pointer'
-                        : 'border-gray-200 bg-gray-50 opacity-60'
-                    }`}
-                    onClick={() => {
-                      if (unlocked) {
-                        navigate(`/lesson/${lesson.id}`);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          completed
-                            ? 'bg-green-100 text-green-600'
-                            : unlocked
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'bg-gray-100 text-gray-400'
-                        }`}>
-                          {completed ? (
-                            <CheckCircle className="h-6 w-6" />
-                          ) : unlocked ? (
-                            <Play className="h-6 w-6" />
-                          ) : (
-                            <Lock className="h-6 w-6" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{lesson.titulo}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {lesson.dificuldade}
-                            </Badge>
-                            <span className="text-sm text-gray-600">+{lesson.xp_reward} XP</span>
-                          </div>
-                        </div>
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Lições do Curso</h2>
+          
+          {lessons.map((lesson, index) => {
+            const isCompleted = getLessonProgress(lesson.id);
+            const isLocked = index > 0 && !getLessonProgress(lessons[index - 1].id);
+            
+            return (
+              <Card 
+                key={lesson.id} 
+                className={`transition-all duration-300 ${
+                  isLocked ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-lg cursor-pointer'
+                } ${isCompleted ? 'border-green-200 bg-green-50/50' : 'bg-white/80 backdrop-blur-sm'}`}
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        isCompleted ? 'bg-green-500' : isLocked ? 'bg-gray-300' : 'bg-blue-500'
+                      }`}>
+                        {isCompleted ? (
+                          <Star className="h-6 w-6 text-white" />
+                        ) : (
+                          <span className="text-white font-bold">{index + 1}</span>
+                        )}
                       </div>
-                      <Button
-                        variant={completed ? "outline" : unlocked ? "default" : "ghost"}
-                        disabled={!unlocked}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (unlocked) {
-                            navigate(`/lesson/${lesson.id}`);
-                          }
-                        }}
+                      <div>
+                        <CardTitle className="text-xl">{lesson.titulo}</CardTitle>
+                        <CardDescription className="flex items-center gap-4 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            ~15 min
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Star className="h-4 w-4" />
+                            {lesson.xp_reward} XP
+                          </span>
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge className={getDifficultyColor(lesson.dificuldade)}>
+                        {lesson.dificuldade}
+                      </Badge>
+                      <Button 
+                        disabled={isLocked}
+                        onClick={() => !isLocked && navigate(`/lesson/${lesson.id}`)}
+                        variant={isCompleted ? "outline" : "default"}
                       >
-                        {completed ? "Revisar" : unlocked ? "Começar" : "Bloqueado"}
+                        {isLocked ? 'Bloqueado' : isCompleted ? 'Revisar' : 'Iniciar'}
+                        {!isLocked && <Play className="ml-2 h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                </CardHeader>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

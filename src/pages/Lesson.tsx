@@ -4,32 +4,44 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { ArrowLeft, ArrowRight, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Database } from '@/integrations/supabase/types';
 
-type Lesson = Database['public']['Tables']['lessons']['Row'];
-type Exercise = Database['public']['Tables']['exercises']['Row'];
+interface Lesson {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  dificuldade: string;
+  xp_reward: number;
+  course_id: string;
+}
+
+interface Exercise {
+  id: string;
+  enunciado: string;
+  alternativas: string[];
+  resposta_certa: string;
+  explicacao: string;
+  tipo: string;
+  ordem: number;
+}
 
 const Lesson = () => {
   const { lessonId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExercise, setCurrentExercise] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [showTheory, setShowTheory] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [phase, setPhase] = useState<'content' | 'exercises' | 'completed'>('content');
 
   useEffect(() => {
     if (!user) {
@@ -38,7 +50,7 @@ const Lesson = () => {
     }
 
     fetchLessonData();
-  }, [lessonId, user]);
+  }, [user, lessonId, navigate]);
 
   const fetchLessonData = async () => {
     try {
@@ -54,7 +66,7 @@ const Lesson = () => {
       if (lessonError) throw lessonError;
       setLesson(lessonData);
 
-      // Fetch exercises for this lesson
+      // Fetch exercises
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('exercises')
         .select('*')
@@ -65,80 +77,65 @@ const Lesson = () => {
       setExercises(exercisesData || []);
 
     } catch (error) {
-      console.error('Erro ao carregar lição:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar a lição",
-        variant: "destructive",
-      });
+      console.error('Erro ao carregar dados da lição:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const submitAnswer = async () => {
-    if (!selectedAnswer || !user || !lesson) return;
+  const handleAnswerSubmit = async () => {
+    if (!selectedAnswer || !lesson) return;
 
-    const exercise = exercises[currentExercise];
-    const correct = selectedAnswer === exercise.resposta_certa;
-    
+    const currentEx = exercises[currentExercise];
+    const correct = selectedAnswer === currentEx.resposta_certa;
     setIsCorrect(correct);
     setShowResult(true);
 
+    // Update user progress
     try {
-      // Call submit-answer edge function
-      const { data, error } = await supabase.functions.invoke('submit-answer', {
-        body: {
-          user_id: user.id,
+      await supabase
+        .from('user_progress')
+        .upsert({
+          user_id: user!.id,
           lesson_id: lesson.id,
-          exercise_id: exercise.id,
-          user_answer: selectedAnswer,
-          is_correct: correct
-        }
-      });
-
-      if (error) {
-        console.error('Erro ao submeter resposta:', error);
-      }
+          pontuacao: correct ? 100 : 0,
+          tentativas: 1,
+          concluido: false
+        });
     } catch (error) {
-      console.error('Erro ao chamar função:', error);
+      console.error('Erro ao salvar progresso:', error);
     }
   };
 
-  const nextExercise = () => {
+  const handleNextExercise = () => {
     if (currentExercise < exercises.length - 1) {
       setCurrentExercise(currentExercise + 1);
       setSelectedAnswer('');
       setShowResult(false);
     } else {
-      // Completed all exercises
-      completeLesson();
+      handleLessonComplete();
     }
   };
 
-  const completeLesson = async () => {
-    if (!user || !lesson) return;
-
+  const handleLessonComplete = async () => {
     try {
-      // Update user progress
-      const { error } = await supabase
+      // Mark lesson as completed
+      await supabase
         .from('user_progress')
         .upsert({
-          user_id: user.id,
-          lesson_id: lesson.id,
+          user_id: user!.id,
+          lesson_id: lesson!.id,
+          pontuacao: 100,
           concluido: true,
           data_conclusao: new Date().toISOString()
         });
 
-      if (error) throw error;
-
-      setPhase('completed');
-      
       toast({
         title: "Parabéns!",
-        description: `Você concluiu a lição e ganhou ${lesson.xp_reward} XP!`,
+        description: `Você completou a lição e ganhou ${lesson!.xp_reward} XP!`,
       });
 
+      navigate(`/course/${lesson!.course_id}`);
     } catch (error) {
       console.error('Erro ao completar lição:', error);
     }
@@ -158,171 +155,170 @@ const Lesson = () => {
         <Header />
         <div className="container mx-auto px-6 py-8 text-center">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Lição não encontrada</h1>
-          <Button onClick={() => navigate('/')}>Voltar ao início</Button>
+          <Button onClick={() => navigate('/')}>Voltar ao Início</Button>
         </div>
       </div>
     );
   }
 
-  if (phase === 'completed') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        <Header />
-        <div className="container mx-auto px-6 py-8">
-          <Card className="max-w-2xl mx-auto text-center shadow-lg">
-            <CardHeader>
-              <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-              <CardTitle className="text-2xl">Lição Concluída!</CardTitle>
-              <CardDescription>
-                Parabéns! Você completou "{lesson.titulo}" com sucesso.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-green-800 font-semibold">+{lesson.xp_reward} XP conquistados!</p>
-              </div>
-              <div className="flex gap-4 justify-center">
-                <Button onClick={() => navigate(`/course/${lesson.course_id}`)}>
-                  Ver Curso
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/')}>
-                  Voltar ao Início
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  const currentEx = exercises[currentExercise];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Header />
       
-      <div className="container mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Button variant="ghost" onClick={() => navigate(`/course/${lesson.course_id}`)}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Curso
-          </Button>
-          <Badge variant="secondary">
-            {lesson.dificuldade} • +{lesson.xp_reward} XP
-          </Badge>
+      <div className="container mx-auto px-6 py-8 max-w-4xl">
+        {/* Back Button */}
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(`/course/${lesson.course_id}`)}
+          className="mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Voltar ao Curso
+        </Button>
+
+        {/* Lesson Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{lesson.titulo}</h1>
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary">{lesson.dificuldade}</Badge>
+            <span className="text-gray-600">{lesson.xp_reward} XP</span>
+          </div>
         </div>
 
-        {phase === 'content' && (
-          <Card className="max-w-4xl mx-auto shadow-lg">
+        {/* Theory Section */}
+        {showTheory && (
+          <Card className="mb-8 bg-white/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-2xl">{lesson.titulo}</CardTitle>
-              <CardDescription>Leia o conteúdo abaixo e depois pratique com os exercícios</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="h-6 w-6 text-yellow-500" />
+                Teoria
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent>
               <div className="prose max-w-none">
-                <div className="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-500">
-                  <div className="flex items-start gap-3">
-                    <Lightbulb className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-semibold text-blue-900 mb-2">Conteúdo da Lição</h3>
-                      <div className="text-blue-800 whitespace-pre-line">{lesson.conteudo}</div>
-                    </div>
-                  </div>
-                </div>
+                {lesson.conteudo.split('\n').map((paragraph, index) => (
+                  <p key={index} className="mb-4 text-gray-700 leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
               </div>
-              
-              <div className="flex justify-center">
-                <Button 
-                  onClick={() => setPhase('exercises')}
-                  disabled={exercises.length === 0}
-                  className="px-8"
-                >
-                  {exercises.length > 0 ? 'Começar Exercícios' : 'Não há exercícios'}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
+              <Button 
+                onClick={() => setShowTheory(false)}
+                className="mt-6"
+                disabled={exercises.length === 0}
+              >
+                {exercises.length > 0 ? 'Iniciar Exercícios' : 'Concluir Lição'}
+              </Button>
             </CardContent>
           </Card>
         )}
 
-        {phase === 'exercises' && exercises.length > 0 && (
-          <Card className="max-w-4xl mx-auto shadow-lg">
+        {/* Exercises Section */}
+        {!showTheory && exercises.length > 0 && currentEx && (
+          <Card className="bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Exercício {currentExercise + 1} de {exercises.length}</CardTitle>
-                <Badge variant="outline">
-                  {Math.round(((currentExercise + 1) / exercises.length) * 100)}% concluído
-                </Badge>
+                <CardTitle>
+                  Exercício {currentExercise + 1} de {exercises.length}
+                </CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowTheory(true)}
+                >
+                  Ver Teoria
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-slate-50 p-6 rounded-lg">
-                <h3 className="font-semibold mb-4 text-lg">
-                  {exercises[currentExercise]?.enunciado}
-                </h3>
+              <div>
+                <h3 className="text-lg font-medium mb-4">{currentEx.enunciado}</h3>
                 
-                {exercises[currentExercise]?.alternativas && Array.isArray(exercises[currentExercise].alternativas) && (
-                  <RadioGroup 
-                    value={selectedAnswer} 
-                    onValueChange={setSelectedAnswer}
-                    disabled={showResult}
-                  >
-                    {(exercises[currentExercise].alternativas as string[]).map((alternativa, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <RadioGroupItem value={alternativa} id={`option-${index}`} />
-                        <Label htmlFor={`option-${index}`} className="cursor-pointer">
-                          {alternativa}
-                        </Label>
-                      </div>
+                {currentEx.tipo === 'multiple_choice' && currentEx.alternativas && (
+                  <div className="space-y-3">
+                    {currentEx.alternativas.map((option, index) => (
+                      <label 
+                        key={index}
+                        className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                          selectedAnswer === option 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="answer"
+                          value={option}
+                          checked={selectedAnswer === option}
+                          onChange={(e) => setSelectedAnswer(e.target.value)}
+                          className="mr-3"
+                          disabled={showResult}
+                        />
+                        <span>{option}</span>
+                      </label>
                     ))}
-                  </RadioGroup>
+                  </div>
                 )}
               </div>
 
               {showResult && (
-                <div className={`p-4 rounded-lg ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    {isCorrect ? (
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-600" />
+                <Card className={`border-2 ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      {isCorrect ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      )}
+                      <span className={`font-medium ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+                        {isCorrect ? 'Correto!' : 'Incorreto'}
+                      </span>
+                    </div>
+                    {currentEx.explicacao && (
+                      <p className="text-gray-700">{currentEx.explicacao}</p>
                     )}
-                    <span className={`font-semibold ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
-                      {isCorrect ? 'Correto!' : 'Incorreto'}
-                    </span>
-                  </div>
-                  {exercises[currentExercise]?.explicacao && (
-                    <p className={isCorrect ? 'text-green-700' : 'text-red-700'}>
-                      {exercises[currentExercise].explicacao}
-                    </p>
-                  )}
-                </div>
+                  </CardContent>
+                </Card>
               )}
 
               <div className="flex justify-between">
                 <Button 
-                  variant="outline" 
-                  onClick={() => setPhase('content')}
+                  variant="outline"
+                  onClick={() => setShowTheory(true)}
                 >
-                  Revisar Conteúdo
+                  Ver Teoria
                 </Button>
                 
                 {!showResult ? (
                   <Button 
-                    onClick={submitAnswer}
+                    onClick={handleAnswerSubmit}
                     disabled={!selectedAnswer}
                   >
                     Confirmar Resposta
                   </Button>
                 ) : (
-                  <Button onClick={nextExercise}>
-                    {currentExercise < exercises.length - 1 ? 'Próximo Exercício' : 'Finalizar Lição'}
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                  <Button onClick={handleNextExercise}>
+                    {currentExercise < exercises.length - 1 ? 'Próximo Exercício' : 'Concluir Lição'}
                   </Button>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No exercises - just complete the lesson */}
+        {!showTheory && exercises.length === 0 && (
+          <Card className="bg-white/80 backdrop-blur-sm text-center">
+            <CardContent className="p-8">
+              <h3 className="text-xl font-medium mb-4">Lição Concluída!</h3>
+              <p className="text-gray-600 mb-6">
+                Você estudou a teoria desta lição. Continue praticando!
+              </p>
+              <Button onClick={handleLessonComplete}>
+                Concluir Lição (+{lesson.xp_reward} XP)
+              </Button>
             </CardContent>
           </Card>
         )}

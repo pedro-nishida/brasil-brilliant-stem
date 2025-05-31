@@ -12,18 +12,16 @@ interface StatsCardProps {
 
 export const StatsCard = ({ icon: Icon, title, value, subtitle, color }: StatsCardProps) => {
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-white/90 backdrop-blur-sm hover:scale-105">
+    <Card className="text-center shadow-lg border-0 bg-white/80 backdrop-blur-sm">
       <CardContent className="p-6">
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 group-hover:scale-110 transition-transform duration-300`}>
-            <Icon className={`h-6 w-6 ${color}`} />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
-            <p className="text-xs text-gray-500">{subtitle}</p>
-          </div>
+        <div className={`w-12 h-12 mx-auto mb-3 bg-opacity-20 rounded-full flex items-center justify-center ${color.replace('text-', 'bg-').replace('-600', '-100')}`}>
+          <Icon className={`h-6 w-6 ${color}`} />
         </div>
+        <div className={`text-2xl font-bold ${color.replace('-600', '-800')}`}>
+          {value}
+        </div>
+        <div className="text-sm text-gray-600 font-medium mb-1">{title}</div>
+        <div className="text-xs text-gray-500">{subtitle}</div>
       </CardContent>
     </Card>
   );

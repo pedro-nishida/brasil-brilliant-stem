@@ -5,23 +5,146 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calculator, Atom, Zap, BookOpen, Target, Timer, Trophy } from 'lucide-react';
+import { Calculator, Target, Clock, Trophy, BookOpen, Zap, CheckCircle } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCourses } from '@/hooks/useCourses';
+import { supabase } from '@/integrations/supabase/client';
+
+interface PracticeSession {
+  id: string;
+  title: string;
+  description: string;
+  type: 'quick' | 'daily' | 'challenge' | 'review';
+  difficulty: 'facil' | 'medio' | 'dificil';
+  questions: number;
+  timeLimit: number; // in minutes
+  xpReward: number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+interface UserPracticeStats {
+  questionsAnswered: number;
+  correctAnswers: number;
+  totalTime: number;
+  streak: number;
+  completedSessions: number;
+}
 
 const Practice = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { courses, loading } = useCourses();
-  const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [stats, setStats] = useState<UserPracticeStats>({
+    questionsAnswered: 0,
+    correctAnswers: 0,
+    totalTime: 0,
+    streak: 0,
+    completedSessions: 0
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
       navigate('/auth');
       return;
     }
+
+    fetchPracticeStats();
   }, [user, navigate]);
+
+  const fetchPracticeStats = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch math progress for practice stats
+      const { data: mathProgressData, error: mathProgressError } = await supabase
+        .from('user_math_progress')
+        .select('*')
+        .eq('user_id', user!.id);
+
+      if (mathProgressError) throw mathProgressError;
+
+      const questionsAnswered = mathProgressData?.reduce((sum, p) => sum + (p.tentativas || 0), 0) || 0;
+      const correctAnswers = mathProgressData?.reduce((sum, p) => sum + (p.acertos || 0), 0) || 0;
+      const totalTime = mathProgressData?.reduce((sum, p) => sum + (p.tempo_estudo || 0), 0) || 0;
+
+      setStats({
+        questionsAnswered,
+        correctAnswers,
+        totalTime,
+        streak: 5, // Placeholder
+        completedSessions: mathProgressData?.length || 0
+      });
+
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas de prática:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const practiceSessions: PracticeSession[] = [
+    {
+      id: 'quick-math',
+      title: 'Prática Rápida',
+      description: 'Resolva 5 questões aleatórias em 10 minutos',
+      type: 'quick',
+      difficulty: 'medio',
+      questions: 5,
+      timeLimit: 10,
+      xpReward: 25,
+      icon: Zap,
+      color: 'from-yellow-500 to-orange-500'
+    },
+    {
+      id: 'daily-challenge',
+      title: 'Desafio Diário',
+      description: 'Questões especiais do dia com bônus de XP',
+      type: 'daily',
+      difficulty: 'medio',
+      questions: 10,
+      timeLimit: 20,
+      xpReward: 50,
+      icon: Trophy,
+      color: 'from-purple-500 to-pink-500'
+    },
+    {
+      id: 'topic-review',
+      title: 'Revisão de Tópicos',
+      description: 'Revise tópicos que você já estudou',
+      type: 'review',
+      difficulty: 'facil',
+      questions: 8,
+      timeLimit: 15,
+      xpReward: 30,
+      icon: BookOpen,
+      color: 'from-blue-500 to-cyan-500'
+    },
+    {
+      id: 'speed-challenge',
+      title: 'Desafio de Velocidade',
+      description: 'Questões rápidas para testar sua agilidade',
+      type: 'challenge',
+      difficulty: 'dificil',
+      questions: 15,
+      timeLimit: 12,
+      xpReward: 75,
+      icon: Clock,
+      color: 'from-red-500 to-rose-500'
+    }
+  ];
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'facil': return 'bg-green-100 text-green-800';
+      case 'medio': return 'bg-yellow-100 text-yellow-800';
+      case 'dificil': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const accuracyPercentage = stats.questionsAnswered > 0 ? 
+    Math.round((stats.correctAnswers / stats.questionsAnswered) * 100) : 0;
 
   if (loading) {
     return (
@@ -31,43 +154,6 @@ const Practice = () => {
     );
   }
 
-  const getSubjectIcon = (iconName: string) => {
-    const icons = {
-      'Calculator': Calculator,
-      'Atom': Atom,
-      'Zap': Zap,
-      'BookOpen': BookOpen
-    };
-    return icons[iconName as keyof typeof icons] || BookOpen;
-  };
-
-  const practiceTypes = [
-    {
-      id: 'quick',
-      title: 'Prática Rápida',
-      description: '5 exercícios aleatórios para revisar conceitos',
-      icon: Timer,
-      color: 'from-blue-500 to-blue-600',
-      duration: '5-10 min'
-    },
-    {
-      id: 'focused',
-      title: 'Prática Focada',
-      description: 'Exercícios específicos de uma matéria escolhida',
-      icon: Target,
-      color: 'from-purple-500 to-purple-600',
-      duration: '10-15 min'
-    },
-    {
-      id: 'challenge',
-      title: 'Desafio Diário',
-      description: 'Problemas mais complexos para testar conhecimento',
-      icon: Trophy,
-      color: 'from-orange-500 to-orange-600',
-      duration: '15-25 min'
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Header />
@@ -76,121 +162,130 @@ const Practice = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Área de Prática
+            Prática
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Reforce seus conhecimentos com exercícios direcionados e desafios personalizados
+            Pratique com exercícios personalizados e melhore suas habilidades
           </p>
         </div>
 
-        {/* Practice Types */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {practiceTypes.map((type) => {
-            const Icon = type.icon;
-            return (
-              <Card key={type.id} className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader className="text-center">
-                  <div className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${type.color} rounded-2xl flex items-center justify-center shadow-lg`}>
-                    <Icon className="h-8 w-8 text-white" />
-                  </div>
-                  <CardTitle className="text-xl">{type.title}</CardTitle>
-                  <CardDescription className="text-center">
-                    {type.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-center space-y-4">
-                  <Badge variant="secondary" className="mb-4">
-                    {type.duration}
-                  </Badge>
-                  <Button 
-                    className={`w-full bg-gradient-to-r ${type.color} hover:opacity-90 text-white`}
-                    onClick={() => {
-                      // Navigate to practice session (to be implemented)
-                      console.log(`Starting ${type.id} practice`);
-                    }}
-                  >
-                    Começar Prática
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="text-center bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
+                <Target className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-blue-800">{stats.questionsAnswered}</div>
+              <div className="text-sm text-gray-600">Questões Respondidas</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="text-center bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 mx-auto mb-3 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="text-2xl font-bold text-green-800">{accuracyPercentage}%</div>
+              <div className="text-sm text-gray-600">Taxa de Acerto</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="text-center bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 mx-auto mb-3 bg-purple-100 rounded-full flex items-center justify-center">
+                <Clock className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="text-2xl font-bold text-purple-800">{stats.totalTime}</div>
+              <div className="text-sm text-gray-600">Minutos Praticados</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="text-center bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 mx-auto mb-3 bg-orange-100 rounded-full flex items-center justify-center">
+                <Trophy className="h-6 w-6 text-orange-600" />
+              </div>
+              <div className="text-2xl font-bold text-orange-800">{stats.streak}</div>
+              <div className="text-sm text-gray-600">Sequência Atual</div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Subject Selection */}
-        <Card className="shadow-lg mb-8">
-          <CardHeader>
-            <CardTitle>Escolha sua Matéria</CardTitle>
-            <CardDescription>
-              Selecione uma matéria específica para prática focada
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {courses.map((course) => {
-                const Icon = getSubjectIcon(course.icone);
-                const isSelected = selectedSubject === course.id;
-                
-                return (
-                  <div
-                    key={course.id}
-                    onClick={() => setSelectedSubject(course.id)}
-                    className={`p-6 rounded-xl border-2 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50 shadow-lg'
-                        : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className={`w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-${course.cor}-500 to-${course.cor}-600 rounded-xl flex items-center justify-center`}>
-                        <Icon className="h-6 w-6 text-white" />
-                      </div>
-                      <h3 className="font-semibold mb-1">{course.nome}</h3>
-                      <p className="text-sm text-gray-600">{course.descricao}</p>
-                    </div>
+        {/* Practice Sessions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {practiceSessions.map((session) => (
+            <Card key={session.id} className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-12 h-12 bg-gradient-to-br ${session.color} rounded-xl flex items-center justify-center`}>
+                    <session.icon className="h-6 w-6 text-white" />
                   </div>
-                );
-              })}
-            </div>
-            
-            {selectedSubject !== 'all' && (
-              <div className="mt-6 text-center">
+                  <Badge className={getDifficultyColor(session.difficulty)}>
+                    {session.difficulty}
+                  </Badge>
+                </div>
+                <CardTitle className="text-xl">{session.title}</CardTitle>
+                <CardDescription className="text-sm">
+                  {session.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-lg font-bold text-gray-800">{session.questions}</div>
+                    <div className="text-xs text-gray-600">questões</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-gray-800">{session.timeLimit}</div>
+                    <div className="text-xs text-gray-600">minutos</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-gray-800">{session.xpReward}</div>
+                    <div className="text-xs text-gray-600">XP</div>
+                  </div>
+                </div>
+                
                 <Button 
-                  onClick={() => {
-                    // Navigate to subject-specific practice
-                    console.log(`Starting practice for subject: ${selectedSubject}`);
-                  }}
-                  className="px-8"
+                  className={`w-full bg-gradient-to-r ${session.color} hover:opacity-90 text-white`}
+                  onClick={() => navigate('/mathematics')} // For now, redirect to math topics
                 >
-                  Praticar {courses.find(c => c.id === selectedSubject)?.nome}
+                  Iniciar Prática
                 </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-        {/* Statistics */}
-        <Card className="shadow-lg">
+        {/* Performance Chart Placeholder */}
+        <Card className="bg-white/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Suas Estatísticas de Prática</CardTitle>
+            <CardTitle>Seu Desempenho</CardTitle>
+            <CardDescription>Acompanhe sua evolução ao longo do tempo</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-800">0</div>
-                <div className="text-sm text-blue-600">Exercícios Resolvidos</div>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Precisão Geral</span>
+                  <span className="text-sm text-gray-600">{accuracyPercentage}%</span>
+                </div>
+                <Progress value={accuracyPercentage} className="h-2" />
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-800">0%</div>
-                <div className="text-sm text-green-600">Taxa de Acerto</div>
-              </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-800">0</div>
-                <div className="text-sm text-purple-600">Desafios Concluídos</div>
-              </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-800">0</div>
-                <div className="text-sm text-orange-600">Pontos de Prática</div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{stats.correctAnswers}</div>
+                  <div className="text-sm text-gray-600">Respostas Corretas</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{stats.completedSessions}</div>
+                  <div className="text-sm text-gray-600">Sessões Completas</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">{Math.round(stats.totalTime / 60)}</div>
+                  <div className="text-sm text-gray-600">Horas Praticadas</div>
+                </div>
               </div>
             </div>
           </CardContent>
