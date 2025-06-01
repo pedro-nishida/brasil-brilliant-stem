@@ -73,6 +73,7 @@ export type Database = {
         Row: {
           alternativas: Json | null
           created_at: string | null
+          dificuldade: string | null
           enunciado: string
           explicacao: string | null
           id: string
@@ -84,6 +85,7 @@ export type Database = {
         Insert: {
           alternativas?: Json | null
           created_at?: string | null
+          dificuldade?: string | null
           enunciado: string
           explicacao?: string | null
           id?: string
@@ -95,6 +97,7 @@ export type Database = {
         Update: {
           alternativas?: Json | null
           created_at?: string | null
+          dificuldade?: string | null
           enunciado?: string
           explicacao?: string | null
           id?: string
@@ -115,31 +118,43 @@ export type Database = {
       }
       lessons: {
         Row: {
-          conteudo: string
-          course_id: string
+          categoria: string | null
+          conteudo_teoria: string
+          cor: string | null
+          course_id: string | null
           created_at: string | null
           dificuldade: string | null
+          icone: string | null
           id: string
+          nivel: string | null
           ordem: number
           titulo: string
           xp_reward: number | null
         }
         Insert: {
-          conteudo: string
-          course_id: string
+          categoria?: string | null
+          conteudo_teoria: string
+          cor?: string | null
+          course_id?: string | null
           created_at?: string | null
           dificuldade?: string | null
+          icone?: string | null
           id?: string
+          nivel?: string | null
           ordem: number
           titulo: string
           xp_reward?: number | null
         }
         Update: {
-          conteudo?: string
-          course_id?: string
+          categoria?: string | null
+          conteudo_teoria?: string
+          cor?: string | null
+          course_id?: string | null
           created_at?: string | null
           dificuldade?: string | null
+          icone?: string | null
           id?: string
+          nivel?: string | null
           ordem?: number
           titulo?: string
           xp_reward?: number | null
@@ -317,33 +332,42 @@ export type Database = {
       }
       user_progress: {
         Row: {
+          acertos: number | null
           concluido: boolean | null
           created_at: string | null
           data_conclusao: string | null
           id: string
           lesson_id: string
           pontuacao: number | null
+          tempo_estudo: number | null
           tentativas: number | null
+          ultimo_acesso: string | null
           user_id: string
         }
         Insert: {
+          acertos?: number | null
           concluido?: boolean | null
           created_at?: string | null
           data_conclusao?: string | null
           id?: string
           lesson_id: string
           pontuacao?: number | null
+          tempo_estudo?: number | null
           tentativas?: number | null
+          ultimo_acesso?: string | null
           user_id: string
         }
         Update: {
+          acertos?: number | null
           concluido?: boolean | null
           created_at?: string | null
           data_conclusao?: string | null
           id?: string
           lesson_id?: string
           pontuacao?: number | null
+          tempo_estudo?: number | null
           tentativas?: number | null
+          ultimo_acesso?: string | null
           user_id?: string
         }
         Relationships: [

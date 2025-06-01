@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,10 +13,14 @@ import { useToast } from '@/hooks/use-toast';
 interface Lesson {
   id: string;
   titulo: string;
-  conteudo: string;
+  conteudo_teoria: string;
   dificuldade: string;
   xp_reward: number;
   course_id: string;
+  categoria: string;
+  nivel: string;
+  icone: string;
+  cor: string;
 }
 
 interface Exercise {
@@ -26,6 +31,7 @@ interface Exercise {
   explicacao: string;
   tipo: string;
   ordem: number;
+  dificuldade: string;
 }
 
 const Lesson = () => {
@@ -74,13 +80,15 @@ const Lesson = () => {
 
       if (exercisesError) throw exercisesError;
       
-      // Convert the data to match our Exercise interface
+      // Convert the data to match our Exercise interface - fix the TypeScript error
       const formattedExercises = exercisesData?.map(exercise => ({
         ...exercise,
         alternativas: Array.isArray(exercise.alternativas) 
           ? exercise.alternativas as string[]
-          : typeof exercise.alternativas === 'string'
+          : exercise.alternativas && typeof exercise.alternativas === 'string'
           ? JSON.parse(exercise.alternativas) as string[]
+          : exercise.alternativas && typeof exercise.alternativas === 'object' && exercise.alternativas !== null
+          ? exercise.alternativas as string[]
           : null
       })) || [];
       
@@ -101,16 +109,25 @@ const Lesson = () => {
     setIsCorrect(correct);
     setShowResult(true);
 
-    // Update user progress
+    // Update user progress with the new unified fields
     try {
+      const { data: existingProgress } = await supabase
+        .from('user_progress')
+        .select('acertos, tentativas')
+        .eq('user_id', user!.id)
+        .eq('lesson_id', lesson.id)
+        .single();
+
       await supabase
         .from('user_progress')
         .upsert({
           user_id: user!.id,
           lesson_id: lesson.id,
           pontuacao: correct ? 100 : 0,
-          tentativas: 1,
-          concluido: false
+          tentativas: (existingProgress?.tentativas || 0) + 1,
+          acertos: (existingProgress?.acertos || 0) + (correct ? 1 : 0),
+          concluido: false,
+          ultimo_acesso: new Date().toISOString()
         });
     } catch (error) {
       console.error('Erro ao salvar progresso:', error);
@@ -137,7 +154,8 @@ const Lesson = () => {
           lesson_id: lesson!.id,
           pontuacao: 100,
           concluido: true,
-          data_conclusao: new Date().toISOString()
+          data_conclusao: new Date().toISOString(),
+          ultimo_acesso: new Date().toISOString()
         });
 
       toast({
@@ -145,7 +163,14 @@ const Lesson = () => {
         description: `Você completou a lição e ganhou ${lesson!.xp_reward} XP!`,
       });
 
-      navigate(`/course/${lesson!.course_id}`);
+      // Navigate back based on lesson type
+      if (lesson!.course_id) {
+        navigate(`/course/${lesson!.course_id}`);
+      } else if (lesson!.categoria === 'matematica') {
+        navigate('/mathematics');
+      } else {
+        navigate('/');
+      }
     } catch (error) {
       console.error('Erro ao completar lição:', error);
     }
@@ -172,6 +197,11 @@ const Lesson = () => {
   }
 
   const currentEx = exercises[currentExercise];
+  const backUrl = lesson.course_id 
+    ? `/course/${lesson.course_id}` 
+    : lesson.categoria === 'matematica' 
+    ? '/mathematics' 
+    : '/';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -181,11 +211,11 @@ const Lesson = () => {
         {/* Back Button */}
         <Button 
           variant="ghost" 
-          onClick={() => navigate(`/course/${lesson.course_id}`)}
+          onClick={() => navigate(backUrl)}
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar ao Curso
+          {lesson.course_id ? 'Voltar ao Curso' : 'Voltar'}
         </Button>
 
         {/* Lesson Header */}
@@ -193,6 +223,7 @@ const Lesson = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{lesson.titulo}</h1>
           <div className="flex items-center gap-4">
             <Badge variant="secondary">{lesson.dificuldade}</Badge>
+            <Badge variant="outline">{lesson.categoria}</Badge>
             <span className="text-gray-600">{lesson.xp_reward} XP</span>
           </div>
         </div>
@@ -208,7 +239,7 @@ const Lesson = () => {
             </CardHeader>
             <CardContent>
               <div className="prose max-w-none">
-                {lesson.conteudo.split('\n').map((paragraph, index) => (
+                {lesson.conteudo_teoria.split('\n').map((paragraph, index) => (
                   <p key={index} className="mb-4 text-gray-700 leading-relaxed">
                     {paragraph}
                   </p>
@@ -233,13 +264,16 @@ const Lesson = () => {
                 <CardTitle>
                   Exercício {currentExercise + 1} de {exercises.length}
                 </CardTitle>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowTheory(true)}
-                >
-                  Ver Teoria
-                </Button>
+                <div className="flex gap-2">
+                  <Badge variant="outline">{currentEx.dificuldade}</Badge>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowTheory(true)}
+                  >
+                    Ver Teoria
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
