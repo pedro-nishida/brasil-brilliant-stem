@@ -5,18 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, BookOpen, Clock, Star, Play } from 'lucide-react';
+import { BookOpen, Clock, CheckCircle, Lock, ArrowLeft } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserProgress } from '@/hooks/useUserProgress';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Lesson {
   id: string;
   titulo: string;
-  conteudo: string;
-  dificuldade: string;
-  xp_reward: number;
+  conteudo_teoria: string;
   ordem: number;
+  nivel: string;
+  prerequisite_lesson_id: string | null;
+  mastery_threshold: number;
+  difficulty_level: number;
+  is_checkpoint: boolean;
 }
 
 interface Course {
@@ -25,15 +29,15 @@ interface Course {
   descricao: string;
   cor: string;
   icone: string;
+  lessons: Lesson[];
 }
 
 const Course = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { progress } = useUserProgress();
   const [course, setCourse] = useState<Course | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [userProgress, setUserProgress] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,63 +46,60 @@ const Course = () => {
       return;
     }
 
-    fetchCourseData();
-  }, [user, courseId, navigate]);
+    if (courseId) {
+      fetchCourse();
+    }
+  }, [courseId, user, navigate]);
 
-  const fetchCourseData = async () => {
+  const fetchCourse = async () => {
     try {
       setLoading(true);
-
-      // Fetch course details
-      const { data: courseData, error: courseError } = await supabase
+      const { data, error } = await supabase
         .from('courses')
-        .select('*')
+        .select(`
+          *,
+          lessons(*)
+        `)
         .eq('id', courseId)
         .single();
 
-      if (courseError) throw courseError;
-      setCourse(courseData);
+      if (error) throw error;
 
-      // Fetch lessons
-      const { data: lessonsData, error: lessonsError } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('ordem');
-
-      if (lessonsError) throw lessonsError;
-      setLessons(lessonsData || []);
-
-      // Fetch user progress
-      if (user) {
-        const { data: progressData, error: progressError } = await supabase
-          .from('user_progress')
-          .select('*')
-          .eq('user_id', user.id);
-
-        if (progressError) throw progressError;
-        setUserProgress(progressData || []);
+      if (data) {
+        setCourse({
+          ...data,
+          lessons: data.lessons?.sort((a, b) => a.ordem - b.ordem) || []
+        });
       }
-
     } catch (error) {
-      console.error('Erro ao carregar dados do curso:', error);
+      console.error('Erro ao carregar curso:', error);
+      navigate('/subjects');
     } finally {
       setLoading(false);
     }
   };
 
   const getLessonProgress = (lessonId: string) => {
-    const progress = userProgress.find(p => p.lesson_id === lessonId);
-    return progress ? progress.concluido : false;
+    return progress.find(p => p.lesson_id === lessonId);
   };
 
-  const getDifficultyColor = (dificuldade: string) => {
-    switch (dificuldade) {
-      case 'facil': return 'bg-green-100 text-green-800';
-      case 'medio': return 'bg-yellow-100 text-yellow-800';
-      case 'dificil': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const isLessonUnlocked = (lesson: Lesson) => {
+    if (!lesson.prerequisite_lesson_id) return true;
+    
+    const prerequisiteProgress = getLessonProgress(lesson.prerequisite_lesson_id);
+    return prerequisiteProgress?.concluido || false;
+  };
+
+  const getCompletedLessons = () => {
+    return course?.lessons.filter(lesson => {
+      const lessonProgress = getLessonProgress(lesson.id);
+      return lessonProgress?.concluido;
+    }).length || 0;
+  };
+
+  const getCourseProgress = () => {
+    if (!course || course.lessons.length === 0) return 0;
+    return (getCompletedLessons() / course.lessons.length) * 100;
   };
 
   if (loading) {
@@ -115,14 +116,13 @@ const Course = () => {
         <Header />
         <div className="container mx-auto px-6 py-8 text-center">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Curso não encontrado</h1>
-          <Button onClick={() => navigate('/')}>Voltar ao Início</Button>
+          <Button onClick={() => navigate('/subjects')}>
+            Voltar aos Estudos
+          </Button>
         </div>
       </div>
     );
   }
-
-  const completedLessons = lessons.filter(lesson => getLessonProgress(lesson.id)).length;
-  const progressPercentage = lessons.length > 0 ? (completedLessons / lessons.length) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -132,97 +132,115 @@ const Course = () => {
         {/* Back Button */}
         <Button 
           variant="ghost" 
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/subjects')}
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
+          Voltar aos Estudos
         </Button>
 
         {/* Course Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <div className={`w-16 h-16 bg-gradient-to-br from-${course.cor}-500 to-${course.cor}-600 rounded-xl flex items-center justify-center`}>
-              <BookOpen className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{course.nome}</h1>
-              <p className="text-gray-600">{course.descricao}</p>
-            </div>
-          </div>
-
-          {/* Progress Overview */}
-          <Card className="bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-lg font-medium">Progresso do Curso</span>
-                <span className="text-lg font-bold text-blue-600">{Math.round(progressPercentage)}%</span>
+        <Card className="mb-8 bg-gradient-to-r from-blue-50 to-purple-50 border-0">
+          <CardHeader>
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <BookOpen className="h-8 w-8 text-white" />
               </div>
-              <Progress value={progressPercentage} className="h-3 mb-2" />
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>{completedLessons} de {lessons.length} lições concluídas</span>
-                <span>{lessons.reduce((sum, lesson) => sum + lesson.xp_reward, 0)} XP total</span>
+              <div className="flex-1">
+                <CardTitle className="text-3xl mb-2">{course.nome}</CardTitle>
+                <CardDescription className="text-lg">
+                  {course.descricao}
+                </CardDescription>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Progresso do Curso</span>
+                <span className="text-sm text-gray-600">
+                  {getCompletedLessons()} de {course.lessons.length} lições
+                </span>
+              </div>
+              <Progress value={getCourseProgress()} className="h-3" />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Lessons List */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Lições do Curso</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Lições do Curso</h2>
           
-          {lessons.map((lesson, index) => {
-            const isCompleted = getLessonProgress(lesson.id);
-            const isLocked = index > 0 && !getLessonProgress(lessons[index - 1].id);
-            
+          {course.lessons.map((lesson) => {
+            const lessonProgress = getLessonProgress(lesson.id);
+            const isCompleted = lessonProgress?.concluido || false;
+            const isUnlocked = isLessonUnlocked(lesson);
+            const masteryScore = lessonProgress?.pontuacao || 0;
+
             return (
               <Card 
-                key={lesson.id} 
-                className={`transition-all duration-300 ${
-                  isLocked ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-lg cursor-pointer'
-                } ${isCompleted ? 'border-green-200 bg-green-50/50' : 'bg-white/80 backdrop-blur-sm'}`}
+                key={lesson.id}
+                className={`transition-all duration-200 hover:shadow-md ${
+                  !isUnlocked ? 'opacity-60' : ''
+                } ${isCompleted ? 'bg-green-50 border-green-200' : ''}`}
               >
-                <CardHeader>
+                <CardContent className="p-6">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        isCompleted ? 'bg-green-500' : isLocked ? 'bg-gray-300' : 'bg-blue-500'
-                      }`}>
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
                         {isCompleted ? (
-                          <Star className="h-6 w-6 text-white" />
+                          <CheckCircle className="h-8 w-8 text-green-600" />
+                        ) : isUnlocked ? (
+                          <BookOpen className="h-8 w-8 text-blue-600" />
                         ) : (
-                          <span className="text-white font-bold">{index + 1}</span>
+                          <Lock className="h-8 w-8 text-gray-400" />
+                        )}
+                        {lesson.is_checkpoint && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>
                         )}
                       </div>
-                      <div>
-                        <CardTitle className="text-xl">{lesson.titulo}</CardTitle>
-                        <CardDescription className="flex items-center gap-4 mt-1">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            ~15 min
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Star className="h-4 w-4" />
-                            {lesson.xp_reward} XP
-                          </span>
-                        </CardDescription>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-lg">{lesson.titulo}</h3>
+                          <Badge variant="outline" className="text-xs">
+                            Nível {lesson.difficulty_level}
+                          </Badge>
+                          {lesson.is_checkpoint && (
+                            <Badge variant="secondary" className="text-xs">
+                              Checkpoint
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <p className="text-gray-600 text-sm mb-2">
+                          {lesson.conteudo_teoria.substring(0, 120)}...
+                        </p>
+                        
+                        {lessonProgress && (
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span>Pontuação: {masteryScore}%</span>
+                            <span>Meta: {lesson.mastery_threshold}%</span>
+                            {lessonProgress.tentativas > 0 && (
+                              <span>{lessonProgress.tentativas} tentativas</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className={getDifficultyColor(lesson.dificuldade)}>
-                        {lesson.dificuldade}
-                      </Badge>
-                      <Button 
-                        disabled={isLocked}
-                        onClick={() => !isLocked && navigate(`/lesson/${lesson.id}`)}
-                        variant={isCompleted ? "outline" : "default"}
-                      >
-                        {isLocked ? 'Bloqueado' : isCompleted ? 'Revisar' : 'Iniciar'}
-                        {!isLocked && <Play className="ml-2 h-4 w-4" />}
-                      </Button>
+                    
+                    <div className="flex items-center space-x-2">
+                      {isUnlocked && (
+                        <Button
+                          onClick={() => navigate(`/lesson/${lesson.id}`)}
+                          className={isCompleted ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}
+                        >
+                          {isCompleted ? 'Revisar' : lessonProgress ? 'Continuar' : 'Começar'}
+                        </Button>
+                      )}
                     </div>
                   </div>
-                </CardHeader>
+                </CardContent>
               </Card>
             );
           })}

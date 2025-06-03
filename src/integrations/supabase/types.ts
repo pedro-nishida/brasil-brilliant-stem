@@ -116,6 +116,41 @@ export type Database = {
           },
         ]
       }
+      hints: {
+        Row: {
+          content: string
+          created_at: string | null
+          exercise_id: string
+          hint_level: number
+          id: string
+          ordem: number
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          exercise_id: string
+          hint_level?: number
+          id?: string
+          ordem?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          exercise_id?: string
+          hint_level?: number
+          id?: string
+          ordem?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hints_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lessons: {
         Row: {
           categoria: string | null
@@ -123,12 +158,17 @@ export type Database = {
           cor: string | null
           course_id: string | null
           created_at: string | null
+          difficulty_level: number | null
           dificuldade: string | null
           icone: string | null
           id: string
+          is_checkpoint: boolean | null
+          mastery_threshold: number | null
           nivel: string | null
           ordem: number
+          prerequisite_lesson_id: string | null
           titulo: string
+          worksheet_count: number | null
           xp_reward: number | null
         }
         Insert: {
@@ -137,12 +177,17 @@ export type Database = {
           cor?: string | null
           course_id?: string | null
           created_at?: string | null
+          difficulty_level?: number | null
           dificuldade?: string | null
           icone?: string | null
           id?: string
+          is_checkpoint?: boolean | null
+          mastery_threshold?: number | null
           nivel?: string | null
           ordem: number
+          prerequisite_lesson_id?: string | null
           titulo: string
+          worksheet_count?: number | null
           xp_reward?: number | null
         }
         Update: {
@@ -151,12 +196,17 @@ export type Database = {
           cor?: string | null
           course_id?: string | null
           created_at?: string | null
+          difficulty_level?: number | null
           dificuldade?: string | null
           icone?: string | null
           id?: string
+          is_checkpoint?: boolean | null
+          mastery_threshold?: number | null
           nivel?: string | null
           ordem?: number
+          prerequisite_lesson_id?: string | null
           titulo?: string
+          worksheet_count?: number | null
           xp_reward?: number | null
         }
         Relationships: [
@@ -165,6 +215,13 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_prerequisite_lesson_id_fkey"
+            columns: ["prerequisite_lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
             referencedColumns: ["id"]
           },
         ]
@@ -333,40 +390,61 @@ export type Database = {
       user_progress: {
         Row: {
           acertos: number | null
+          attempt_count: number | null
+          comfort_zone_indicator: number | null
           concluido: boolean | null
+          consecutive_correct: number | null
           created_at: string | null
           data_conclusao: string | null
+          hint_usage: number | null
           id: string
+          is_unlocked: boolean | null
           lesson_id: string
+          mastery_score: number | null
           pontuacao: number | null
           tempo_estudo: number | null
           tentativas: number | null
+          time_per_problem: number | null
           ultimo_acesso: string | null
           user_id: string
         }
         Insert: {
           acertos?: number | null
+          attempt_count?: number | null
+          comfort_zone_indicator?: number | null
           concluido?: boolean | null
+          consecutive_correct?: number | null
           created_at?: string | null
           data_conclusao?: string | null
+          hint_usage?: number | null
           id?: string
+          is_unlocked?: boolean | null
           lesson_id: string
+          mastery_score?: number | null
           pontuacao?: number | null
           tempo_estudo?: number | null
           tentativas?: number | null
+          time_per_problem?: number | null
           ultimo_acesso?: string | null
           user_id: string
         }
         Update: {
           acertos?: number | null
+          attempt_count?: number | null
+          comfort_zone_indicator?: number | null
           concluido?: boolean | null
+          consecutive_correct?: number | null
           created_at?: string | null
           data_conclusao?: string | null
+          hint_usage?: number | null
           id?: string
+          is_unlocked?: boolean | null
           lesson_id?: string
+          mastery_score?: number | null
           pontuacao?: number | null
           tempo_estudo?: number | null
           tentativas?: number | null
+          time_per_problem?: number | null
           ultimo_acesso?: string | null
           user_id?: string
         }
@@ -376,6 +454,47 @@ export type Database = {
             columns: ["lesson_id"]
             isOneToOne: false
             referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_worksheet_progress: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          hints_used: number | null
+          id: string
+          score: number | null
+          time_spent: number | null
+          user_id: string
+          worksheet_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          hints_used?: number | null
+          id?: string
+          score?: number | null
+          time_spent?: number | null
+          user_id: string
+          worksheet_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          hints_used?: number | null
+          id?: string
+          score?: number | null
+          time_spent?: number | null
+          user_id?: string
+          worksheet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_worksheet_progress_worksheet_id_fkey"
+            columns: ["worksheet_id"]
+            isOneToOne: false
+            referencedRelation: "worksheets"
             referencedColumns: ["id"]
           },
         ]
@@ -416,12 +535,53 @@ export type Database = {
         }
         Relationships: []
       }
+      worksheets: {
+        Row: {
+          created_at: string | null
+          id: string
+          lesson_id: string
+          ordem: number
+          problem_count: number | null
+          theory_content: string | null
+          titulo: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lesson_id: string
+          ordem?: number
+          problem_count?: number | null
+          theory_content?: string | null
+          titulo: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lesson_id?: string
+          ordem?: number
+          problem_count?: number | null
+          theory_content?: string | null
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worksheets_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_unlock_lesson: {
+        Args: { user_uuid: string; lesson_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       achievement_type:
