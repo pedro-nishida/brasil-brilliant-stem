@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -80,17 +79,36 @@ const Lesson = () => {
 
       if (exercisesError) throw exercisesError;
       
-      // Convert the data to match our Exercise interface - fix the TypeScript error
-      const formattedExercises = exercisesData?.map(exercise => ({
-        ...exercise,
-        alternativas: Array.isArray(exercise.alternativas) 
-          ? exercise.alternativas as string[]
-          : exercise.alternativas && typeof exercise.alternativas === 'string'
-          ? JSON.parse(exercise.alternativas) as string[]
-          : exercise.alternativas && typeof exercise.alternativas === 'object' && exercise.alternativas !== null
-          ? exercise.alternativas as string[]
-          : null
-      })) || [];
+      // Properly convert JSONB alternativas to string array
+      const formattedExercises = exercisesData?.map(exercise => {
+        let alternativas: string[] | null = null;
+        
+        if (exercise.alternativas) {
+          if (Array.isArray(exercise.alternativas)) {
+            // Already an array
+            alternativas = exercise.alternativas as string[];
+          } else if (typeof exercise.alternativas === 'string') {
+            // JSON string that needs parsing
+            try {
+              const parsed = JSON.parse(exercise.alternativas);
+              alternativas = Array.isArray(parsed) ? parsed : null;
+            } catch {
+              alternativas = null;
+            }
+          } else if (typeof exercise.alternativas === 'object' && exercise.alternativas !== null) {
+            // JSONB object - convert to unknown first, then check if it's an array
+            const jsonbData = exercise.alternativas as unknown;
+            if (Array.isArray(jsonbData)) {
+              alternativas = jsonbData as string[];
+            }
+          }
+        }
+        
+        return {
+          ...exercise,
+          alternativas
+        } as Exercise;
+      }) || [];
       
       setExercises(formattedExercises);
 
@@ -280,7 +298,7 @@ const Lesson = () => {
               <div>
                 <h3 className="text-lg font-medium mb-4">{currentEx.enunciado}</h3>
                 
-                {currentEx.tipo === 'multiple_choice' && currentEx.alternativas && Array.isArray(currentEx.alternativas) && (
+                {currentEx.tipo === 'multiple_choice' && currentEx.alternativas && (
                   <div className="space-y-3">
                     {currentEx.alternativas.map((option, index) => (
                       <label 
