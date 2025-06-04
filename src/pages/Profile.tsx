@@ -6,10 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { User, Mail, School, Calendar, Trophy, Target, Flame, Star, Settings } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { User, Mail, School, Calendar, Trophy, Target, Flame, Star, Settings, Users, BookOpen } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { useFriends } from '@/hooks/useFriends';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Achievement {
@@ -19,6 +21,10 @@ interface Achievement {
   tipo: string;
   xp_bonus: number;
   data_obtida: string;
+  icon: string;
+  color: string;
+  progress_current: number;
+  progress_target: number;
 }
 
 interface UserStats {
@@ -30,12 +36,14 @@ interface UserStats {
   mathTopicsStudied: number;
   correctAnswers: number;
   studyTimeMinutes: number;
+  coursesCompleted: number;
 }
 
 const Profile = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
+  const { friends } = useFriends();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [stats, setStats] = useState<UserStats>({
     totalLessons: 0,
@@ -45,7 +53,8 @@ const Profile = () => {
     maxStreak: 0,
     mathTopicsStudied: 0,
     correctAnswers: 0,
-    studyTimeMinutes: 0
+    studyTimeMinutes: 0,
+    coursesCompleted: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +104,7 @@ const Profile = () => {
         .eq('user_id', user!.id)
         .single();
 
-      if (streakError) throw streakError;
+      if (streakError && streakError.code !== 'PGRST116') throw streakError;
 
       // Calculate stats
       const completedLessons = progressData?.filter(p => p.concluido).length || 0;
@@ -103,6 +112,34 @@ const Profile = () => {
       const mathTopicsStudied = mathProgressData?.length || 0;
       const correctAnswers = mathProgressData?.reduce((sum, p) => sum + (p.acertos || 0), 0) || 0;
       const studyTimeMinutes = mathProgressData?.reduce((sum, p) => sum + (p.tempo_estudo || 0), 0) || 0;
+
+      // Count completed courses (assuming a course is completed when all its lessons are done)
+      const { data: coursesData, error: coursesError } = await supabase
+        .from('courses')
+        .select('id');
+
+      let coursesCompleted = 0;
+      if (coursesData && !coursesError) {
+        for (const course of coursesData) {
+          const { data: courseLessons } = await supabase
+            .from('lessons')
+            .select('id')
+            .eq('course_id', course.id);
+
+          if (courseLessons && courseLessons.length > 0) {
+            const { data: completedCourseLessons } = await supabase
+              .from('user_progress')
+              .select('lesson_id')
+              .eq('user_id', user!.id)
+              .eq('concluido', true)
+              .in('lesson_id', courseLessons.map(l => l.id));
+
+            if (completedCourseLessons && completedCourseLessons.length === courseLessons.length) {
+              coursesCompleted++;
+            }
+          }
+        }
+      }
 
       setStats({
         totalLessons,
@@ -112,7 +149,8 @@ const Profile = () => {
         maxStreak: streakData?.maior_streak || 0,
         mathTopicsStudied,
         correctAnswers,
-        studyTimeMinutes
+        studyTimeMinutes,
+        coursesCompleted
       });
 
     } catch (error) {
@@ -187,6 +225,10 @@ const Profile = () => {
                       <Flame className="h-4 w-4 mr-1" />
                       {stats.currentStreak} dias
                     </Badge>
+                    <Badge className="bg-green-100 text-green-800 px-3 py-1">
+                      <Users className="h-4 w-4 mr-1" />
+                      {friends.length} amigos
+                    </Badge>
                   </div>
                 </div>
 
@@ -204,116 +246,185 @@ const Profile = () => {
           </Card>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="text-center bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
-                <Target className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="text-2xl font-bold text-blue-800">{stats.completedLessons}</div>
-              <div className="text-sm text-gray-600">Lições Concluídas</div>
-              <div className="text-xs text-gray-500 mt-1">de {stats.totalLessons} total</div>
-            </CardContent>
-          </Card>
+        {/* Tabs for different sections */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="achievements">Conquistas</TabsTrigger>
+            <TabsTrigger value="progress">Progresso</TabsTrigger>
+            <TabsTrigger value="social">Social</TabsTrigger>
+          </TabsList>
 
-          <Card className="text-center bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 mx-auto mb-3 bg-green-100 rounded-full flex items-center justify-center">
-                <Trophy className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="text-2xl font-bold text-green-800">{achievements.length}</div>
-              <div className="text-sm text-gray-600">Conquistas</div>
-              <div className="text-xs text-gray-500 mt-1">desbloqueadas</div>
-            </CardContent>
-          </Card>
-
-          <Card className="text-center bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 mx-auto mb-3 bg-purple-100 rounded-full flex items-center justify-center">
-                <User className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="text-2xl font-bold text-purple-800">{stats.correctAnswers}</div>
-              <div className="text-sm text-gray-600">Respostas Corretas</div>
-              <div className="text-xs text-gray-500 mt-1">matemática</div>
-            </CardContent>
-          </Card>
-
-          <Card className="text-center bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 mx-auto mb-3 bg-orange-100 rounded-full flex items-center justify-center">
-                <Flame className="h-6 w-6 text-orange-600" />
-              </div>
-              <div className="text-2xl font-bold text-orange-800">{stats.maxStreak}</div>
-              <div className="text-sm text-gray-600">Maior Sequência</div>
-              <div className="text-xs text-gray-500 mt-1">dias consecutivos</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Progress Overview */}
-          <Card className="bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Progresso Geral</CardTitle>
-              <CardDescription>Seu desempenho nos cursos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">Lições Concluídas</span>
-                    <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
+          <TabsContent value="overview" className="mt-6">
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Card className="text-center bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Target className="h-6 w-6 text-blue-600" />
                   </div>
-                  <Progress value={progressPercentage} className="h-2" />
-                </div>
+                  <div className="text-2xl font-bold text-blue-800">{stats.completedLessons}</div>
+                  <div className="text-sm text-gray-600">Lições Concluídas</div>
+                  <div className="text-xs text-gray-500 mt-1">de {stats.totalLessons} total</div>
+                </CardContent>
+              </Card>
 
-                <div className="grid grid-cols-2 gap-4 pt-4">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">{stats.mathTopicsStudied}</div>
-                    <div className="text-xs text-gray-600">Tópicos de Matemática</div>
+              <Card className="text-center bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 mx-auto mb-3 bg-green-100 rounded-full flex items-center justify-center">
+                    <BookOpen className="h-6 w-6 text-green-600" />
                   </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-green-600">{stats.studyTimeMinutes}</div>
-                    <div className="text-xs text-gray-600">Minutos Estudados</div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="text-2xl font-bold text-green-800">{stats.coursesCompleted}</div>
+                  <div className="text-sm text-gray-600">Cursos Concluídos</div>
+                  <div className="text-xs text-gray-500 mt-1">certificados</div>
+                </CardContent>
+              </Card>
 
-          {/* Recent Achievements */}
-          <Card className="bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Conquistas Recentes</CardTitle>
-              <CardDescription>Suas últimas conquistas desbloqueadas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {achievements.length > 0 ? (
-                <div className="space-y-3">
-                  {achievements.slice(0, 5).map((achievement) => (
-                    <div key={achievement.id} className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                        <Trophy className="h-4 w-4 text-yellow-600" />
+              <Card className="text-center bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 mx-auto mb-3 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Trophy className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-purple-800">{achievements.length}</div>
+                  <div className="text-sm text-gray-600">Conquistas</div>
+                  <div className="text-xs text-gray-500 mt-1">desbloqueadas</div>
+                </CardContent>
+              </Card>
+
+              <Card className="text-center bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-6">
+                  <div className="w-12 h-12 mx-auto mb-3 bg-orange-100 rounded-full flex items-center justify-center">
+                    <Flame className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-orange-800">{stats.maxStreak}</div>
+                  <div className="text-sm text-gray-600">Maior Sequência</div>
+                  <div className="text-xs text-gray-500 mt-1">dias consecutivos</div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="achievements" className="mt-6">
+            <Card className="bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle>Conquistas</CardTitle>
+                <CardDescription>Suas conquistas desbloqueadas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {achievements.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {achievements.map((achievement) => (
+                      <div key={achievement.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                        <div className="text-3xl">{achievement.icon}</div>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{achievement.titulo}</div>
+                          <div className="text-sm text-gray-600">{achievement.descricao}</div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="secondary">+{achievement.xp_bonus} XP</Badge>
+                            {achievement.progress_target > 1 && (
+                              <div className="text-xs text-gray-500">
+                                {achievement.progress_current}/{achievement.progress_target}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Trophy className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>Nenhuma conquista ainda</p>
+                    <p className="text-sm">Continue estudando para desbloquear conquistas!</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="progress" className="mt-6">
+            <Card className="bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle>Progresso Detalhado</CardTitle>
+                <CardDescription>Seu desempenho nos estudos</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">Progresso Geral</span>
+                      <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
+                    </div>
+                    <Progress value={progressPercentage} className="h-3" />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">{stats.mathTopicsStudied}</div>
+                      <div className="text-sm text-gray-600">Tópicos de Matemática</div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{stats.correctAnswers}</div>
+                      <div className="text-sm text-gray-600">Respostas Corretas</div>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">{Math.round(stats.studyTimeMinutes / 60)}</div>
+                      <div className="text-sm text-gray-600">Horas Estudadas</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="social" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle>Amigos ({friends.length})</CardTitle>
+                  <CardDescription>Seus amigos na plataforma</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {friends.slice(0, 5).map((friend) => (
+                    <div key={friend.id} className="flex items-center gap-3 mb-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={friend.friend_profile?.avatar} />
+                        <AvatarFallback>
+                          {friend.friend_profile?.nome?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex-1">
-                        <div className="font-medium text-gray-900">{achievement.titulo}</div>
-                        <div className="text-sm text-gray-600">{achievement.descricao}</div>
+                        <div className="font-medium">{friend.friend_profile?.nome}</div>
+                        <div className="text-sm text-gray-500">{friend.friend_profile?.xp || 0} XP</div>
                       </div>
-                      <Badge variant="secondary">+{achievement.xp_bonus} XP</Badge>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Trophy className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>Nenhuma conquista ainda</p>
-                  <p className="text-sm">Continue estudando para desbloquear conquistas!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  {friends.length > 5 && (
+                    <div className="text-sm text-gray-500 text-center mt-3">
+                      +{friends.length - 5} mais amigos
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle>Atividade Recente</CardTitle>
+                  <CardDescription>Suas ações na comunidade</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 text-sm text-gray-600">
+                    <div>Completou a lição "Funções Quadráticas"</div>
+                    <div>Ganhou a conquista "Sequência de 7 dias"</div>
+                    <div>Adicionou João como amigo</div>
+                    <div>Participou da discussão "Dicas para ENEM"</div>
+                    <div>Completou o curso "Matemática Básica"</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

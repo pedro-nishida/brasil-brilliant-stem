@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MessageCircle, Users, Trophy, Star, ThumbsUp, Clock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MessageCircle, Users, Trophy, Star, ThumbsUp, Clock, UserPlus } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
+import { FriendsManager } from '@/components/FriendsManager';
+import { DiscussionForum } from '@/components/DiscussionForum';
 
 const Community = () => {
   const navigate = useNavigate();
@@ -19,39 +22,6 @@ const Community = () => {
       return;
     }
   }, [user, navigate]);
-
-  const discussions = [
-    {
-      id: 1,
-      title: "Como resolver funções quadráticas mais rapidamente?",
-      author: "Maria Silva",
-      replies: 12,
-      likes: 8,
-      timeAgo: "2h",
-      category: "Matemática",
-      isPopular: true
-    },
-    {
-      id: 2,
-      title: "Dicas para o ENEM 2024 - Física",
-      author: "João Santos",
-      replies: 25,
-      likes: 15,
-      timeAgo: "4h",
-      category: "Física",
-      isPopular: true
-    },
-    {
-      id: 3,
-      title: "Projeto de Química: Reações Orgânicas",
-      author: "Ana Costa",
-      replies: 7,
-      likes: 5,
-      timeAgo: "1d",
-      category: "Química",
-      isPopular: false
-    }
-  ];
 
   const leaderboard = [
     { name: "Carlos Oliveira", points: 2540, position: 1 },
@@ -76,108 +46,82 @@ const Community = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Quick Actions */}
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5" />
-                  Começar uma Discussão
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button className="h-12 bg-blue-600 hover:bg-blue-700">
-                    Fazer Pergunta
-                  </Button>
-                  <Button variant="outline" className="h-12">
-                    Compartilhar Dica
-                  </Button>
-                  <Button variant="outline" className="h-12">
-                    Criar Grupo de Estudo
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Popular Discussions */}
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>Discussões Populares</CardTitle>
-                <CardDescription>
-                  Veja o que a comunidade está discutindo
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {discussions.map((discussion) => (
-                  <div key={discussion.id} className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-gray-900 flex-1 mr-4">
-                        {discussion.title}
-                      </h3>
-                      {discussion.isPopular && (
-                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                          Popular
-                        </Badge>
-                      )}
+          <div className="lg:col-span-3">
+            <Tabs defaultValue="discussions" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="discussions">Discussões</TabsTrigger>
+                <TabsTrigger value="friends">Amigos</TabsTrigger>
+                <TabsTrigger value="groups">Grupos</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="discussions" className="mt-6">
+                <DiscussionForum />
+              </TabsContent>
+              
+              <TabsContent value="friends" className="mt-6">
+                <FriendsManager />
+              </TabsContent>
+              
+              <TabsContent value="groups" className="mt-6">
+                {/* Study Groups */}
+                <Card className="shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Grupos de Estudo Ativos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 border rounded-lg">
+                        <h3 className="font-semibold mb-2">Matemática ENEM 2024</h3>
+                        <p className="text-sm text-gray-600 mb-3">Preparação focada em funções e geometria</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">23 membros</span>
+                          <Button size="sm">Participar</Button>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 border rounded-lg">
+                        <h3 className="font-semibold mb-2">Física - Mecânica</h3>
+                        <p className="text-sm text-gray-600 mb-3">Resolução de exercícios de cinemática</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">18 membros</span>
+                          <Button size="sm">Participar</Button>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 border rounded-lg">
+                        <h3 className="font-semibold mb-2">Química Orgânica</h3>
+                        <p className="text-sm text-gray-600 mb-3">Estudo de reações e nomenclatura</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">15 membros</span>
+                          <Button size="sm">Participar</Button>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 border rounded-lg">
+                        <h3 className="font-semibold mb-2">Biologia - Genética</h3>
+                        <p className="text-sm text-gray-600 mb-3">Hereditariedade e biotecnologia</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">12 membros</span>
+                          <Button size="sm">Participar</Button>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                      <span>por {discussion.author}</span>
-                      <Badge variant="outline">{discussion.category}</Badge>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {discussion.timeAgo}
-                      </span>
+                    <div className="mt-6">
+                      <Button className="w-full">
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Criar Novo Grupo
+                      </Button>
                     </div>
-                    
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <MessageCircle className="h-4 w-4" />
-                        {discussion.replies} respostas
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp className="h-4 w-4" />
-                        {discussion.likes} curtidas
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Study Groups */}
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Grupos de Estudo Ativos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2">Matemática ENEM 2024</h3>
-                    <p className="text-sm text-gray-600 mb-3">Preparação focada em funções e geometria</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">23 membros</span>
-                      <Button size="sm">Participar</Button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2">Física - Mecânica</h3>
-                    <p className="text-sm text-gray-600 mb-3">Resolução de exercícios de cinemática</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">18 membros</span>
-                      <Button size="sm">Participar</Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar */}
@@ -231,6 +175,27 @@ const Community = () => {
                     </div>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle>Ações Rápidas</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button className="w-full" variant="outline">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Chat Global
+                </Button>
+                <Button className="w-full" variant="outline">
+                  <Users className="h-4 w-4 mr-2" />
+                  Encontrar Amigos
+                </Button>
+                <Button className="w-full" variant="outline">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Desafios Semanais
+                </Button>
               </CardContent>
             </Card>
           </div>
