@@ -2,15 +2,20 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Search, Menu, Flame } from "lucide-react";
+import { Bell, Search, Menu, Flame, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 
 export const Header = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { profile } = useProfile();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
@@ -69,14 +74,26 @@ export const Header = () => {
               </Badge>
             </Button>
 
-            {/* Profile */}
+            {/* Profile and Logout */}
             {user && (
-              <Avatar className="h-8 w-8 cursor-pointer" onClick={() => navigate('/profile')}>
-                <AvatarImage src={profile?.avatar || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                  {profile?.nome?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8 cursor-pointer" onClick={() => navigate('/profile')}>
+                  <AvatarImage src={profile?.avatar || undefined} />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                    {profile?.nome?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={handleLogout}
+                  className="text-gray-500 hover:text-gray-700"
+                  title="Sair"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
             )}
 
             {/* Mobile Menu */}
