@@ -34,50 +34,76 @@ export const useFriends = () => {
     try {
       setLoading(true);
       
-      // Fetch accepted friends
+      // Fetch accepted friends - simplified query without join
       const { data: friendsData, error: friendsError } = await supabase
         .from('user_friends')
-        .select(`
-          *,
-          friend_profile:users_profile!user_friends_friend_id_fkey(nome, avatar)
-        `)
+        .select('*')
         .eq('user_id', user!.id)
         .eq('status', 'accepted');
 
       if (friendsError) throw friendsError;
 
-      // Fetch pending requests
+      // Fetch pending requests - simplified query without join
       const { data: requestsData, error: requestsError } = await supabase
         .from('user_friends')
-        .select(`
-          *,
-          friend_profile:users_profile!user_friends_user_id_fkey(nome, avatar)
-        `)
+        .select('*')
         .eq('friend_id', user!.id)
         .eq('status', 'pending');
 
       if (requestsError) throw requestsError;
 
-      setFriends(friendsData || []);
-      setFriendRequests(requestsData || []);
+      // For now, set mock profile data since the relationship doesn't exist
+      const friendsWithProfiles = (friendsData || []).map(friend => ({
+        ...friend,
+        status: friend.status as 'pending' | 'accepted' | 'blocked',
+        friend_profile: {
+          nome: 'Usuário',
+          avatar: undefined
+        }
+      }));
+
+      const requestsWithProfiles = (requestsData || []).map(request => ({
+        ...request,
+        status: request.status as 'pending' | 'accepted' | 'blocked',
+        friend_profile: {
+          nome: 'Usuário',
+          avatar: undefined
+        }
+      }));
+
+      setFriends(friendsWithProfiles);
+      setFriendRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Erro ao buscar amigos:', error);
+      setFriends([]);
+      setFriendRequests([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const sendFriendRequest = async (friendEmail: string) => {
+  const sendFriendRequest = async (friendId: string) => {
     try {
-      // First find user by email (we'll need to add email to users_profile or use a different approach)
+      const { error } = await supabase
+        .from('user_friends')
+        .insert({
+          user_id: user!.id,
+          friend_id: friendId,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
       toast({
-        title: "Funcionalidade em desenvolvimento",
-        description: "Em breve você poderá adicionar amigos por email.",
+        title: "Solicitação enviada!",
+        description: "Sua solicitação de amizade foi enviada.",
       });
+
+      fetchFriends();
     } catch (error: any) {
       toast({
         title: "Erro",
-        description: error.message,
+        description: error.message || "Erro ao enviar solicitação.",
         variant: "destructive",
       });
     }

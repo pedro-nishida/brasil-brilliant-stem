@@ -9,13 +9,13 @@ import { UserPlus, Check, X, Users } from 'lucide-react';
 import { useFriends } from '@/hooks/useFriends';
 
 export const FriendsManager = () => {
-  const { friends, pendingRequests, loading, sendFriendRequest, acceptFriendRequest, removeFriend } = useFriends();
-  const [friendEmail, setFriendEmail] = useState('');
+  const { friends, friendRequests, loading, sendFriendRequest, acceptFriendRequest, removeFriend } = useFriends();
+  const [friendId, setFriendId] = useState('');
 
   const handleSendRequest = () => {
-    if (friendEmail.trim()) {
-      sendFriendRequest(friendEmail.trim());
-      setFriendEmail('');
+    if (friendId.trim()) {
+      sendFriendRequest(friendId.trim());
+      setFriendId('');
     }
   };
 
@@ -44,11 +44,11 @@ export const FriendsManager = () => {
           <div className="flex gap-2">
             <Input
               placeholder="ID do usuário"
-              value={friendEmail}
-              onChange={(e) => setFriendEmail(e.target.value)}
+              value={friendId}
+              onChange={(e) => setFriendId(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendRequest()}
             />
-            <Button onClick={handleSendRequest} disabled={!friendEmail.trim()}>
+            <Button onClick={handleSendRequest} disabled={!friendId.trim()}>
               Enviar
             </Button>
           </div>
@@ -56,7 +56,7 @@ export const FriendsManager = () => {
       </Card>
 
       {/* Pending Requests */}
-      {pendingRequests.length > 0 && (
+      {friendRequests && friendRequests.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Solicitações Pendentes</CardTitle>
@@ -66,19 +66,19 @@ export const FriendsManager = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {pendingRequests.map((request) => (
+              {friendRequests.map((request) => (
                 <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={request.friend_profile?.avatar} />
                       <AvatarFallback>
-                        {request.friend_profile?.nome?.charAt(0).toUpperCase()}
+                        {request.friend_profile?.nome?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="font-medium">{request.friend_profile?.nome}</div>
+                      <div className="font-medium">{request.friend_profile?.nome || 'Usuário'}</div>
                       <div className="text-sm text-gray-500">
-                        {request.friend_profile?.xp || 0} XP
+                        Solicitação pendente
                       </div>
                     </div>
                   </div>
@@ -109,11 +109,11 @@ export const FriendsManager = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Meus Amigos ({friends.length})
+            Meus Amigos ({friends?.length || 0})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {friends.length > 0 ? (
+          {friends && friends.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {friends.map((friend) => (
                 <div key={friend.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -121,13 +121,13 @@ export const FriendsManager = () => {
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={friend.friend_profile?.avatar} />
                       <AvatarFallback>
-                        {friend.friend_profile?.nome?.charAt(0).toUpperCase()}
+                        {friend.friend_profile?.nome?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="font-medium">{friend.friend_profile?.nome}</div>
+                      <div className="font-medium">{friend.friend_profile?.nome || 'Usuário'}</div>
                       <Badge variant="secondary">
-                        {friend.friend_profile?.xp || 0} XP
+                        Amigo
                       </Badge>
                     </div>
                   </div>

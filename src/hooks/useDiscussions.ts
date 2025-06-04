@@ -36,27 +36,28 @@ export const useDiscussions = () => {
   const fetchDiscussions = async () => {
     try {
       setLoading(true);
+      
+      // Simplified query without join since the relationship doesn't exist
       const { data, error } = await supabase
         .from('discussions')
-        .select(`
-          *,
-          author_profile:users_profile!discussions_user_id_fkey(nome, avatar)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Type assertion to handle the join properly
+      // Add mock profile data since the relationship doesn't exist
       const discussionsWithProfiles = (data || []).map(discussion => ({
         ...discussion,
-        author_profile: Array.isArray(discussion.author_profile) 
-          ? discussion.author_profile[0] 
-          : discussion.author_profile
+        author_profile: {
+          nome: 'Usuário',
+          avatar: undefined
+        }
       })) as Discussion[];
 
       setDiscussions(discussionsWithProfiles);
     } catch (error) {
       console.error('Erro ao buscar discussões:', error);
+      setDiscussions([]);
     } finally {
       setLoading(false);
     }
