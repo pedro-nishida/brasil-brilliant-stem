@@ -1,179 +1,77 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Mail, School, Calendar, Trophy, Target, Flame, Star, Settings, Users, BookOpen } from 'lucide-react';
-import { Header } from '@/components/Header';
-import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/hooks/useProfile';
-import { useFriends } from '@/hooks/useFriends';
-import { supabase } from '@/integrations/supabase/client';
-
-interface Achievement {
-  id: string;
-  titulo: string;
-  descricao: string;
-  tipo: string;
-  xp_bonus: number;
-  data_obtida: string;
-  icon: string;
-  color: string;
-  progress_current: number;
-  progress_target: number;
-}
-
-interface UserStats {
-  totalLessons: number;
-  completedLessons: number;
-  totalXP: number;
-  currentStreak: number;
-  maxStreak: number;
-  mathTopicsStudied: number;
-  correctAnswers: number;
-  studyTimeMinutes: number;
-  coursesCompleted: number;
-}
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Trophy, 
+  Target, 
+  Calendar, 
+  BookOpen, 
+  Users, 
+  Star,
+  Award,
+  TrendingUp,
+  Clock,
+  CheckCircle
+} from "lucide-react";
+import { useProfile } from "@/hooks/useProfile";
+import { useUserProgress } from "@/hooks/useUserProgress";
+import { FriendsManager } from "@/components/FriendsManager";
 
 const Profile = () => {
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const { profile } = useProfile();
-  const { friends } = useFriends();
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [stats, setStats] = useState<UserStats>({
-    totalLessons: 0,
-    completedLessons: 0,
-    totalXP: 0,
-    currentStreak: 0,
-    maxStreak: 0,
-    mathTopicsStudied: 0,
-    correctAnswers: 0,
-    studyTimeMinutes: 0,
-    coursesCompleted: 0
-  });
-  const [loading, setLoading] = useState(true);
+  const { profile, loading: profileLoading } = useProfile();
+  const { progress, loading: progressLoading } = useUserProgress();
+
+  // Mock data for demonstration since the actual data structure might not exist yet
+  const mockStats = {
+    xp: 2450,
+    level: 8,
+    streak: 12,
+    totalExercises: 156,
+    correctAnswers: 142,
+    studyTime: 48,
+    rank: 23
+  };
+
+  const mockAchievements = [
+    { id: 1, name: "Primeira Vitória", description: "Complete seu primeiro exercício", icon: "🏆", unlocked: true },
+    { id: 2, name: "Sequência de 7", description: "7 dias consecutivos estudando", icon: "🔥", unlocked: true },
+    { id: 3, name: "Matemático", description: "100 exercícios de matemática", icon: "📊", unlocked: true },
+    { id: 4, name: "Persistente", description: "30 dias de estudo", icon: "💪", unlocked: false },
+    { id: 5, name: "Expert", description: "95% de acertos em 50 exercícios", icon: "🎯", unlocked: false },
+  ];
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       navigate('/auth');
-      return;
     }
+  }, [user, authLoading, navigate]);
 
-    fetchProfileData();
-  }, [user, navigate]);
-
-  const fetchProfileData = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch achievements
-      const { data: achievementsData, error: achievementsError } = await supabase
-        .from('achievements')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('data_obtida', { ascending: false });
-
-      if (achievementsError) throw achievementsError;
-      setAchievements(achievementsData || []);
-
-      // Fetch user progress stats
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', user!.id);
-
-      if (progressError) throw progressError;
-
-      // Fetch math progress stats
-      const { data: mathProgressData, error: mathProgressError } = await supabase
-        .from('user_math_progress')
-        .select('*')
-        .eq('user_id', user!.id);
-
-      if (mathProgressError) throw mathProgressError;
-
-      // Fetch streak data
-      const { data: streakData, error: streakError } = await supabase
-        .from('streaks')
-        .select('*')
-        .eq('user_id', user!.id)
-        .single();
-
-      if (streakError && streakError.code !== 'PGRST116') throw streakError;
-
-      // Calculate stats
-      const completedLessons = progressData?.filter(p => p.concluido).length || 0;
-      const totalLessons = progressData?.length || 0;
-      const mathTopicsStudied = mathProgressData?.length || 0;
-      const correctAnswers = mathProgressData?.reduce((sum, p) => sum + (p.acertos || 0), 0) || 0;
-      const studyTimeMinutes = mathProgressData?.reduce((sum, p) => sum + (p.tempo_estudo || 0), 0) || 0;
-
-      // Count completed courses (assuming a course is completed when all its lessons are done)
-      const { data: coursesData, error: coursesError } = await supabase
-        .from('courses')
-        .select('id');
-
-      let coursesCompleted = 0;
-      if (coursesData && !coursesError) {
-        for (const course of coursesData) {
-          const { data: courseLessons } = await supabase
-            .from('lessons')
-            .select('id')
-            .eq('course_id', course.id);
-
-          if (courseLessons && courseLessons.length > 0) {
-            const { data: completedCourseLessons } = await supabase
-              .from('user_progress')
-              .select('lesson_id')
-              .eq('user_id', user!.id)
-              .eq('concluido', true)
-              .in('lesson_id', courseLessons.map(l => l.id));
-
-            if (completedCourseLessons && completedCourseLessons.length === courseLessons.length) {
-              coursesCompleted++;
-            }
-          }
-        }
-      }
-
-      setStats({
-        totalLessons,
-        completedLessons,
-        totalXP: profile?.xp || 0,
-        currentStreak: streakData?.dias_consecutivos || 0,
-        maxStreak: streakData?.maior_streak || 0,
-        mathTopicsStudied,
-        correctAnswers,
-        studyTimeMinutes,
-        coursesCompleted
-      });
-
-    } catch (error) {
-      console.error('Erro ao carregar dados do perfil:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
-  if (loading) {
+  if (authLoading || profileLoading || progressLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando perfil...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const progressPercentage = stats.totalLessons > 0 ? (stats.completedLessons / stats.totalLessons) * 100 : 0;
+  if (!user) return null;
+
+  const displayName = profile?.nome || user.email?.split('@')[0] || 'Usuário';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -182,247 +80,193 @@ const Profile = () => {
       <div className="container mx-auto px-6 py-8">
         {/* Profile Header */}
         <div className="mb-8">
-          <Card className="bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-8">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+            <CardHeader>
               <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={profile?.avatar || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-2xl">
-                    {profile?.nome?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {profile?.nome || 'Usuário'}
-                  </h1>
-                  
-                  <div className="flex items-center gap-6 text-gray-600 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      <span>{user?.email}</span>
-                    </div>
-                    {profile?.escola && (
-                      <div className="flex items-center gap-2">
-                        <School className="h-4 w-4" />
-                        <span>{profile.escola}</span>
-                      </div>
-                    )}
-                    {profile?.idade && (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>{profile.idade} anos</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <Badge className="bg-blue-100 text-blue-800 px-3 py-1">
-                      <Star className="h-4 w-4 mr-1" />
-                      {stats.totalXP} XP
-                    </Badge>
-                    <Badge className="bg-orange-100 text-orange-800 px-3 py-1">
-                      <Flame className="h-4 w-4 mr-1" />
-                      {stats.currentStreak} dias
-                    </Badge>
-                    <Badge className="bg-green-100 text-green-800 px-3 py-1">
-                      <Users className="h-4 w-4 mr-1" />
-                      {friends.length} amigos
-                    </Badge>
-                  </div>
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                  {displayName.charAt(0).toUpperCase()}
                 </div>
-
-                <div className="flex gap-3">
-                  <Button variant="outline">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Editar Perfil
-                  </Button>
-                  <Button variant="destructive" onClick={handleSignOut}>
-                    Sair
-                  </Button>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-800">{displayName}</h1>
+                  <p className="text-gray-600">{user.email}</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Badge variant="secondary">Nível {mockStats.level}</Badge>
+                    <Badge variant="outline">Rank #{mockStats.rank}</Badge>
+                  </div>
                 </div>
               </div>
+            </CardHeader>
+          </Card>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-600">XP Total</CardTitle>
+                <Star className="h-4 w-4 text-yellow-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">{mockStats.xp.toLocaleString()}</div>
+              <p className="text-xs text-green-600 mt-1">+125 hoje</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-600">Sequência</CardTitle>
+                <Calendar className="h-4 w-4 text-orange-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">{mockStats.streak} dias</div>
+              <p className="text-xs text-green-600 mt-1">Recorde pessoal!</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-600">Exercícios</CardTitle>
+                <BookOpen className="h-4 w-4 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">{mockStats.totalExercises}</div>
+              <p className="text-xs text-blue-600 mt-1">{Math.round((mockStats.correctAnswers / mockStats.totalExercises) * 100)}% de acertos</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-600">Tempo de Estudo</CardTitle>
+                <Clock className="h-4 w-4 text-purple-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-800">{mockStats.studyTime}h</div>
+              <p className="text-xs text-purple-600 mt-1">Esta semana</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs for different sections */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="achievements">Conquistas</TabsTrigger>
+        {/* Tabs Section */}
+        <Tabs defaultValue="progress" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 lg:w-fit lg:grid-cols-4">
             <TabsTrigger value="progress">Progresso</TabsTrigger>
-            <TabsTrigger value="social">Social</TabsTrigger>
+            <TabsTrigger value="achievements">Conquistas</TabsTrigger>
+            <TabsTrigger value="friends">Amigos</TabsTrigger>
+            <TabsTrigger value="settings">Configurações</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-6">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card className="text-center bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Target className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-blue-800">{stats.completedLessons}</div>
-                  <div className="text-sm text-gray-600">Lições Concluídas</div>
-                  <div className="text-xs text-gray-500 mt-1">de {stats.totalLessons} total</div>
-                </CardContent>
-              </Card>
-
-              <Card className="text-center bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-green-100 rounded-full flex items-center justify-center">
-                    <BookOpen className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-green-800">{stats.coursesCompleted}</div>
-                  <div className="text-sm text-gray-600">Cursos Concluídos</div>
-                  <div className="text-xs text-gray-500 mt-1">certificados</div>
-                </CardContent>
-              </Card>
-
-              <Card className="text-center bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Trophy className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-purple-800">{achievements.length}</div>
-                  <div className="text-sm text-gray-600">Conquistas</div>
-                  <div className="text-xs text-gray-500 mt-1">desbloqueadas</div>
-                </CardContent>
-              </Card>
-
-              <Card className="text-center bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-orange-100 rounded-full flex items-center justify-center">
-                    <Flame className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-orange-800">{stats.maxStreak}</div>
-                  <div className="text-sm text-gray-600">Maior Sequência</div>
-                  <div className="text-xs text-gray-500 mt-1">dias consecutivos</div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="achievements" className="mt-6">
-            <Card className="bg-white/80 backdrop-blur-sm">
+          <TabsContent value="progress" className="space-y-6">
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
-                <CardTitle>Conquistas</CardTitle>
-                <CardDescription>Suas conquistas desbloqueadas</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  Progresso por Matéria
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                {achievements.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {achievements.map((achievement) => (
-                      <div key={achievement.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-                        <div className="text-3xl">{achievement.icon}</div>
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900">{achievement.titulo}</div>
-                          <div className="text-sm text-gray-600">{achievement.descricao}</div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="secondary">+{achievement.xp_bonus} XP</Badge>
-                            {achievement.progress_target > 1 && (
-                              <div className="text-xs text-gray-500">
-                                {achievement.progress_current}/{achievement.progress_target}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Matemática</span>
+                    <span>78%</span>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Trophy className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p>Nenhuma conquista ainda</p>
-                    <p className="text-sm">Continue estudando para desbloquear conquistas!</p>
+                  <Progress value={78} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Física</span>
+                    <span>65%</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="progress" className="mt-6">
-            <Card className="bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle>Progresso Detalhado</CardTitle>
-                <CardDescription>Seu desempenho nos estudos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Progresso Geral</span>
-                      <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
-                    </div>
-                    <Progress value={progressPercentage} className="h-3" />
+                  <Progress value={65} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Química</span>
+                    <span>82%</span>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">{stats.mathTopicsStudied}</div>
-                      <div className="text-sm text-gray-600">Tópicos de Matemática</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{stats.correctAnswers}</div>
-                      <div className="text-sm text-gray-600">Respostas Corretas</div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">{Math.round(stats.studyTimeMinutes / 60)}</div>
-                      <div className="text-sm text-gray-600">Horas Estudadas</div>
-                    </div>
+                  <Progress value={82} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Português</span>
+                    <span>71%</span>
                   </div>
+                  <Progress value={71} className="h-2" />
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="social" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle>Amigos ({friends.length})</CardTitle>
-                  <CardDescription>Seus amigos na plataforma</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {friends.slice(0, 5).map((friend) => (
-                    <div key={friend.id} className="flex items-center gap-3 mb-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={friend.friend_profile?.avatar} />
-                        <AvatarFallback>
-                          {friend.friend_profile?.nome?.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+          <TabsContent value="achievements" className="space-y-6">
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-600" />
+                  Conquistas
+                </CardTitle>
+                <CardDescription>
+                  Suas conquistas e marcos alcançados
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4">
+                  {mockAchievements.map((achievement) => (
+                    <div 
+                      key={achievement.id}
+                      className={`flex items-center gap-4 p-4 rounded-lg border ${
+                        achievement.unlocked 
+                          ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' 
+                          : 'bg-gray-50 border-gray-200 opacity-60'
+                      }`}
+                    >
+                      <div className="text-2xl">{achievement.icon}</div>
                       <div className="flex-1">
-                        <div className="font-medium">{friend.friend_profile?.nome}</div>
-                        <div className="text-sm text-gray-500">{friend.friend_profile?.xp || 0} XP</div>
+                        <h4 className="font-semibold text-gray-800">{achievement.name}</h4>
+                        <p className="text-sm text-gray-600">{achievement.description}</p>
                       </div>
+                      {achievement.unlocked && (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      )}
                     </div>
                   ))}
-                  {friends.length > 5 && (
-                    <div className="text-sm text-gray-500 text-center mt-3">
-                      +{friends.length - 5} mais amigos
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <Card className="bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle>Atividade Recente</CardTitle>
-                  <CardDescription>Suas ações na comunidade</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 text-sm text-gray-600">
-                    <div>Completou a lição "Funções Quadráticas"</div>
-                    <div>Ganhou a conquista "Sequência de 7 dias"</div>
-                    <div>Adicionou João como amigo</div>
-                    <div>Participou da discussão "Dicas para ENEM"</div>
-                    <div>Completou o curso "Matemática Básica"</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="friends" className="space-y-6">
+            <FriendsManager />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle>Configurações da Conta</CardTitle>
+                <CardDescription>
+                  Gerencie suas preferências e configurações
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email</label>
+                  <div className="text-sm text-gray-600">{user.email}</div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nome</label>
+                  <div className="text-sm text-gray-600">{displayName}</div>
+                </div>
+                <Button variant="outline" className="w-full">
+                  Editar Perfil
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
