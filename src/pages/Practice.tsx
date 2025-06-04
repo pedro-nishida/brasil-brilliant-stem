@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Calculator, Target, Clock, Trophy, BookOpen, Zap, CheckCircle } from 'l
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { IncorrectAnswersCard } from '@/components/IncorrectAnswersCard';
 
 interface PracticeSession {
   id: string;
@@ -212,6 +212,11 @@ const Practice = () => {
           </Card>
         </div>
 
+        {/* Incorrect Answers Card */}
+        <div className="mb-8">
+          <IncorrectAnswersCard />
+        </div>
+
         {/* Practice Sessions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           {practiceSessions.map((session) => (
@@ -248,7 +253,7 @@ const Practice = () => {
                 
                 <Button 
                   className={`w-full bg-gradient-to-r ${session.color} hover:opacity-90 text-white`}
-                  onClick={() => navigate('/mathematics')} // For now, redirect to math topics
+                  onClick={() => navigate('/mathematics')}
                 >
                   Iniciar Prática
                 </Button>

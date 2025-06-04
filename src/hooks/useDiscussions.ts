@@ -23,20 +23,6 @@ interface Discussion {
   };
 }
 
-interface Reply {
-  id: string;
-  discussion_id: string;
-  user_id: string;
-  content: string;
-  likes_count: number;
-  parent_reply_id: string | null;
-  created_at: string;
-  author_profile?: {
-    nome: string;
-    avatar?: string;
-  };
-}
-
 export const useDiscussions = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -59,7 +45,16 @@ export const useDiscussions = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDiscussions(data || []);
+
+      // Type assertion to handle the join properly
+      const discussionsWithProfiles = (data || []).map(discussion => ({
+        ...discussion,
+        author_profile: Array.isArray(discussion.author_profile) 
+          ? discussion.author_profile[0] 
+          : discussion.author_profile
+      })) as Discussion[];
+
+      setDiscussions(discussionsWithProfiles);
     } catch (error) {
       console.error('Erro ao buscar discussões:', error);
     } finally {

@@ -10,10 +10,10 @@ interface Friend {
   friend_id: string;
   status: 'pending' | 'accepted' | 'blocked';
   created_at: string;
+  updated_at: string;
   friend_profile?: {
     nome: string;
     avatar?: string;
-    xp?: number;
   };
 }
 
@@ -21,7 +21,7 @@ export const useFriends = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
+  const [friendRequests, setFriendRequests] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export const useFriends = () => {
         .from('user_friends')
         .select(`
           *,
-          friend_profile:users_profile!user_friends_friend_id_fkey(nome, avatar, xp)
+          friend_profile:users_profile!user_friends_friend_id_fkey(nome, avatar)
         `)
         .eq('user_id', user!.id)
         .eq('status', 'accepted');
@@ -51,7 +51,7 @@ export const useFriends = () => {
         .from('user_friends')
         .select(`
           *,
-          friend_profile:users_profile!user_friends_user_id_fkey(nome, avatar, xp)
+          friend_profile:users_profile!user_friends_user_id_fkey(nome, avatar)
         `)
         .eq('friend_id', user!.id)
         .eq('status', 'pending');
@@ -59,7 +59,7 @@ export const useFriends = () => {
       if (requestsError) throw requestsError;
 
       setFriends(friendsData || []);
-      setPendingRequests(requestsData || []);
+      setFriendRequests(requestsData || []);
     } catch (error) {
       console.error('Erro ao buscar amigos:', error);
     } finally {
@@ -69,42 +69,15 @@ export const useFriends = () => {
 
   const sendFriendRequest = async (friendEmail: string) => {
     try {
-      // First find the user by email
-      const { data: userData, error: userError } = await supabase
-        .from('users_profile')
-        .select('id')
-        .eq('id', friendEmail)
-        .single();
-
-      if (userError) {
-        toast({
-          title: "Usuário não encontrado",
-          description: "Não foi possível encontrar um usuário com este email.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('user_friends')
-        .insert({
-          user_id: user!.id,
-          friend_id: userData.id,
-          status: 'pending'
-        });
-
-      if (error) throw error;
-
+      // First find user by email (we'll need to add email to users_profile or use a different approach)
       toast({
-        title: "Solicitação enviada!",
-        description: "Sua solicitação de amizade foi enviada.",
+        title: "Funcionalidade em desenvolvimento",
+        description: "Em breve você poderá adicionar amigos por email.",
       });
-
-      fetchFriends();
     } catch (error: any) {
       toast({
         title: "Erro",
-        description: error.message || "Erro ao enviar solicitação de amizade.",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -120,7 +93,7 @@ export const useFriends = () => {
       if (error) throw error;
 
       toast({
-        title: "Amizade aceita!",
+        title: "Solicitação aceita!",
         description: "Vocês agora são amigos.",
       });
 
@@ -128,7 +101,7 @@ export const useFriends = () => {
     } catch (error: any) {
       toast({
         title: "Erro",
-        description: error.message || "Erro ao aceitar solicitação.",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -145,14 +118,14 @@ export const useFriends = () => {
 
       toast({
         title: "Amigo removido",
-        description: "A amizade foi removida.",
+        description: "A amizade foi desfeita.",
       });
 
       fetchFriends();
     } catch (error: any) {
       toast({
         title: "Erro",
-        description: error.message || "Erro ao remover amigo.",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -160,7 +133,7 @@ export const useFriends = () => {
 
   return {
     friends,
-    pendingRequests,
+    friendRequests,
     loading,
     sendFriendRequest,
     acceptFriendRequest,
