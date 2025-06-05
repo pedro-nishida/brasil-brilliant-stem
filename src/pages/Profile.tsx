@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +22,7 @@ import {
 import { useProfile } from "@/hooks/useProfile";
 import { useUserProgress } from "@/hooks/useUserProgress";
 import { FriendsManager } from "@/components/FriendsManager";
+import { ProfileEditDialog } from "@/components/ProfileEditDialog";
 
 const Profile = () => {
   const { user, loading: authLoading } = useAuth();
@@ -262,9 +262,7 @@ const Profile = () => {
                   <label className="text-sm font-medium">Nome</label>
                   <div className="text-sm text-gray-600">{displayName}</div>
                 </div>
-                <Button variant="outline" className="w-full">
-                  Editar Perfil
-                </Button>
+                <ProfileEditDialog />
               </CardContent>
             </Card>
           </TabsContent>

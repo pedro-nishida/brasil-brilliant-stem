@@ -2,19 +2,25 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Search, Menu, Flame, LogOut } from "lucide-react";
+import { Bell, Search, Menu, Flame, LogOut, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useState } from "react";
 
 export const Header = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
   };
 
   return (
@@ -37,7 +43,7 @@ export const Header = () => {
             <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/')}>
               Cursos
             </Button>
-            <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/mathematics')}>
+            <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/subjects')}>
               Matemática
             </Button>
             <Button variant="ghost" className="text-gray-600 hover:text-gray-900" onClick={() => navigate('/practice')}>
@@ -97,11 +103,34 @@ export const Header = () => {
             )}
 
             {/* Mobile Menu */}
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileMenu}>
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
+            <nav className="flex flex-col gap-2">
+              <Button variant="ghost" className="justify-start text-gray-600 hover:text-gray-900" onClick={() => { navigate('/'); setMobileMenuOpen(false); }}>
+                Cursos
+              </Button>
+              <Button variant="ghost" className="justify-start text-gray-600 hover:text-gray-900" onClick={() => { navigate('/subjects'); setMobileMenuOpen(false); }}>
+                Matemática
+              </Button>
+              <Button variant="ghost" className="justify-start text-gray-600 hover:text-gray-900" onClick={() => { navigate('/practice'); setMobileMenuOpen(false); }}>
+                Prática
+              </Button>
+              <Button variant="ghost" className="justify-start text-gray-600 hover:text-gray-900" onClick={() => { navigate('/community'); setMobileMenuOpen(false); }}>
+                Comunidade
+              </Button>
+              <Button variant="ghost" className="justify-start text-gray-600 hover:text-gray-900" onClick={() => { navigate('/enem'); setMobileMenuOpen(false); }}>
+                ENEM
+              </Button>
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );
