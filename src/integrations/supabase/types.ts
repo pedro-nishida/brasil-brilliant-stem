@@ -798,6 +798,7 @@ export type Database = {
       users_profile: {
         Row: {
           avatar: string | null
+          bio: string | null
           created_at: string | null
           escola: string | null
           id: string
@@ -809,6 +810,7 @@ export type Database = {
         }
         Insert: {
           avatar?: string | null
+          bio?: string | null
           created_at?: string | null
           escola?: string | null
           id: string
@@ -820,6 +822,7 @@ export type Database = {
         }
         Update: {
           avatar?: string | null
+          bio?: string | null
           created_at?: string | null
           escola?: string | null
           id?: string

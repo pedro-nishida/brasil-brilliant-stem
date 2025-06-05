@@ -1,24 +1,34 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export const ProfileEditDialog = () => {
   const { user } = useAuth();
-  const { profile } = useProfile();
+  const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    nome: profile?.nome || '',
-    bio: profile?.bio || '',
+    nome: '',
+    bio: '',
   });
+
+  // Update form data when profile changes or dialog opens
+  useEffect(() => {
+    if (open && profile) {
+      setFormData({
+        nome: profile.nome || '',
+        bio: profile.bio || '',
+      });
+    }
+  }, [open, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,16 +36,13 @@ export const ProfileEditDialog = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('users_profile')
-        .upsert({
-          id: user.id,
-          nome: formData.nome,
-          bio: formData.bio,
-          updated_at: new Date().toISOString(),
-        });
+      const { error } = await updateProfile({
+        nome: formData.nome,
+        bio: formData.bio,
+        updated_at: new Date().toISOString(),
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error);
 
       toast({
         title: "Perfil atualizado",
@@ -76,15 +83,17 @@ export const ProfileEditDialog = () => {
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               placeholder="Seu nome"
+              required
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="bio">Bio</Label>
-            <Input
+            <Textarea
               id="bio"
               value={formData.bio}
               onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
               placeholder="Conte um pouco sobre você"
+              rows={3}
             />
           </div>
           <div className="flex justify-end gap-2">
