@@ -5,13 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, Clock, Target, BookOpen, TrendingUp, Award, FileText, CheckCircle } from 'lucide-react';
+import { Target, BookOpen, TrendingUp, Award, FileText } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
+import { CountdownTimer } from '@/components/enem/CountdownTimer';
+import { SimuladoCard } from '@/components/enem/SimuladoCard';
+import { StudySchedule } from '@/components/enem/StudySchedule';
+import { useToast } from '@/hooks/use-toast';
 
 const Enem = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!user) {
@@ -35,7 +40,7 @@ const Enem = () => {
       description: "Linguagens e Ciências Humanas + Redação",
       duration: "5h30min",
       questions: 90,
-      status: "available",
+      status: "available" as const,
       difficulty: "Médio"
     },
     {
@@ -44,7 +49,7 @@ const Enem = () => {
       description: "Matemática e Ciências da Natureza",
       duration: "5h",
       questions: 90,
-      status: "locked",
+      status: "locked" as const,
       difficulty: "Difícil"
     },
     {
@@ -53,10 +58,17 @@ const Enem = () => {
       description: "Apenas questões de Matemática",
       duration: "3h",
       questions: 45,
-      status: "completed",
+      status: "completed" as const,
       difficulty: "Médio",
       score: 78
     }
+  ];
+
+  const todayTasks = [
+    { id: '1', subject: 'Matemática', topic: 'Geometria Plana', completed: false, duration: 45 },
+    { id: '2', subject: 'Português', topic: 'Interpretação de Texto', completed: true, duration: 30 },
+    { id: '3', subject: 'História', topic: 'Brasil República', completed: false, duration: 40 },
+    { id: '4', subject: 'Redação', topic: 'Dissertação Argumentativa', completed: false, duration: 60 }
   ];
 
   const tips = [
@@ -77,6 +89,21 @@ const Enem = () => {
     }
   ];
 
+  const handleStartSimulado = (simuladoId: number) => {
+    const simulado = simulados.find(s => s.id === simuladoId);
+    if (simulado?.status === 'available') {
+      toast({
+        title: "Iniciando Simulado",
+        description: `Preparando ${simulado.title}...`,
+      });
+      // Aqui você pode navegar para a página do simulado
+      console.log(`Iniciando simulado ${simuladoId}`);
+    }
+  };
+
+  // Data do ENEM 2024 (exemplo: 3 de novembro)
+  const enemDate = new Date('2024-11-03T13:00:00');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Header />
@@ -96,37 +123,11 @@ const Enem = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Countdown */}
-            <Card className="shadow-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Calendar className="h-6 w-6" />
-                  ENEM 2024
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <div className="text-3xl font-bold">156</div>
-                    <div className="text-sm opacity-90">Dias</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">12</div>
-                    <div className="text-sm opacity-90">Horas</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">34</div>
-                    <div className="text-sm opacity-90">Minutos</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">22</div>
-                    <div className="text-sm opacity-90">Segundos</div>
-                  </div>
-                </div>
-                <div className="mt-4 text-center">
-                  <p className="text-sm opacity-90">1º dia: 3 de novembro • 2º dia: 10 de novembro</p>
-                </div>
-              </CardContent>
-            </Card>
+            <CountdownTimer 
+              targetDate={enemDate}
+              title="ENEM 2024"
+              subtitle="1º dia: 3 de novembro • 2º dia: 10 de novembro"
+            />
 
             {/* Progress by Subject */}
             <Card className="shadow-lg">
@@ -170,43 +171,11 @@ const Enem = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {simulados.map((simulado) => (
-                  <div key={simulado.id} className="p-4 border rounded-lg">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold mb-1">{simulado.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{simulado.description}</p>
-                        <div className="flex gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {simulado.duration}
-                          </span>
-                          <span>{simulado.questions} questões</span>
-                          <Badge variant="outline" className="text-xs">
-                            {simulado.difficulty}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="ml-4">
-                        {simulado.status === 'completed' && (
-                          <div className="text-center">
-                            <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-1" />
-                            <div className="text-sm font-semibold text-green-600">
-                              {simulado.score}%
-                            </div>
-                          </div>
-                        )}
-                        {simulado.status === 'available' && (
-                          <Button size="sm">Iniciar</Button>
-                        )}
-                        {simulado.status === 'locked' && (
-                          <Button size="sm" variant="outline" disabled>
-                            Bloqueado
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <SimuladoCard 
+                    key={simulado.id} 
+                    simulado={simulado} 
+                    onStart={handleStartSimulado}
+                  />
                 ))}
               </CardContent>
             </Card>
@@ -215,34 +184,12 @@ const Enem = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Study Plan */}
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Plano de Estudos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-800">4h</div>
-                    <div className="text-sm text-blue-600">Meta diária</div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Esta semana</span>
-                      <span className="font-medium">18h / 28h</span>
-                    </div>
-                    <Progress value={64} className="h-2" />
-                  </div>
-                  
-                  <Button className="w-full">
-                    Ver Cronograma Completo
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <StudySchedule 
+              dailyGoalHours={4}
+              weeklyGoalHours={28}
+              currentWeekHours={18}
+              todayTasks={todayTasks}
+            />
 
             {/* Performance */}
             <Card className="shadow-lg">
