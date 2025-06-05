@@ -27,7 +27,7 @@ export const ProfileEditDialog = () => {
     setLoading(true);
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users_profile')
         .upsert({
           id: user.id,
           nome: formData.nome,

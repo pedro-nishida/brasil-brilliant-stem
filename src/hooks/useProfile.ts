@@ -9,6 +9,7 @@ interface UserProfile {
   idade?: number;
   escola?: string;
   avatar?: string;
+  bio?: string; // Added bio field
   xp: number;
   streak_atual: number;
   created_at: string;
